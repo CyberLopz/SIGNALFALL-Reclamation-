@@ -428,19 +428,27 @@ const FLUID_SCALE = 96 / 352;
    circuit traces, halo ring, cyan-gem spear; Sable's tall proportions,
    not the old RPG sheet's chibi ones. She appears in person for the
    Foreman's Yard beat and holds its exit afterwards (aegisGuard). */
+/* p3 sheet: ten poses on two rows drawn at different sizes, so each frame
+   carries its own scale (s) that puts her at a consistent ~108px height.
+   dive plays during the drop-in, runA/runB on the walk to her guard post. */
 const AEGIS_FRAMES = {
-  aegisStand:{x:4,y:4,w:557,h:490,ax:215,ay:10},
-  aegisSlash:{x:565,y:4,w:752,h:490,ax:369,ay:10},
-  aegisGuard:{x:1321,y:4,w:431,h:490,ax:180,ay:10}
+  aegisStand:{x:1476,y:4,w:190,h:422,ax:102,ay:10,s:108 / 402},
+  aegisSlash:{x:926,y:4,w:542,h:432,ax:176,ay:10,s:108 / 402},
+  aegisGuard:{x:1670,y:520,w:234,h:349,ax:120,ay:10,s:108 / 329},
+  aegisDive:{x:466,y:520,w:483,h:416,ax:241,ay:10,s:108 / 329},
+  aegisRunA:{x:957,y:520,w:353,h:371,ax:290,ay:10,s:108 / 329},
+  aegisRunB:{x:1318,y:520,w:344,h:371,ax:284,ay:10,s:108 / 329}
 };
 const AEGIS_SCALE = 112 / 490;
-/* dialogue portraits: busts REMADE for Reclamation in this game's own
-   sprite style (the old strip was cropped from the RPG's chibi art),
-   packed in speaker order SABLE / AEGIS / RELAY / WRAITH / ECHO */
+/* dialogue portraits (p3 strip, 13 x 256px): SABLE · AEGIS x5 expressions ·
+   RELAY x4 · the glitch face (unknown signal) · WRAITH · ECHO's crystal.
+   talk = the open-mouth frame shown on alternate beats while a line types. */
+const PCELL = (i) => ({ x:i * 256, y:0, w:256, h:256 });
 const PORTRAIT_FRAMES = {
-  SABLE:{x:0,y:0,w:256,h:256}, AEGIS:{x:256,y:0,w:256,h:256},
-  RELAY:{x:512,y:0,w:256,h:256}, WRAITH:{x:768,y:0,w:256,h:256},
-  ECHO:{x:1024,y:0,w:256,h:256}
+  SABLE:PCELL(0),
+  AEGIS:Object.assign(PCELL(1), { talk:PCELL(3) }),
+  RELAY:Object.assign(PCELL(6), { talk:PCELL(7) }),
+  UNKNOWN:PCELL(10), WRAITH:PCELL(11), ECHO:PCELL(12)
 };
 const SABLE2_SCALE = 96 / 400;
 const SABLE_SCALE = 96 / 395;      /* hero drawn ~96px tall */
@@ -485,8 +493,8 @@ async function loadAssets(){
     ["items", "assets/atlas-items-p1.png"],
     ["mech", "assets/atlas-mech-p1.png"],
     ["fluid", "assets/atlas-sable-p6-fluidity.png"],
-    ["aegis", "assets/atlas-aegis-p2.png"],
-    ["portraits", "assets/atlas-portraits-p2.png"],
+    ["aegis", "assets/atlas-aegis-p3.png"],
+    ["portraits", "assets/atlas-portraits-p3.png"],
     ["bg", "assets/bg-sector7.jpg"]
   ];
   /* all atlases load in parallel; the bar tracks completions */
@@ -2821,7 +2829,9 @@ function drawDialogue(){
      ECHO pre-stabilization, the Wraith, and the unknown signal) */
   const ps = DLG.comms ? 62 : 92, px = bx + 12, py = by + (boxH - ps) / 2;
   ctx.fillStyle = "#0d1030"; ctx.fillRect(px, py, ps, ps);
-  const pf = PORTRAIT_FRAMES[who === "UNKNOWN" ? "ECHO" : who];
+  const pf0 = PORTRAIT_FRAMES[who] || PORTRAIT_FRAMES.ECHO;
+  const talking = pf0.talk && DLG.chars < line.text.length && Math.floor(stageTime * 9) % 2 === 1;
+  const pf = talking ? pf0.talk : pf0;
   if (IMG.portraits && pf){
     if (glitchy){
       const strips = 5, sh = ps / strips;
@@ -3810,9 +3820,12 @@ function drawWorld(){
   if (IMG.aegis && (AEGIS_BEAT.active || aegisGuard)){
     const ax2 = (aegisGuard && !AEGIS_BEAT.active) ? AEGIS_GUARD_X : AEGIS_BEAT.x;
     const ay2 = (aegisGuard && !AEGIS_BEAT.active) ? 440 : AEGIS_BEAT.y;
-    const aPose = (AEGIS_BEAT.active && AEGIS_BEAT.slashed && AEGIS_BEAT.phase === 0) ? "aegisSlash"
-      : ((aegisGuard && !AEGIS_BEAT.active) ? "aegisGuard" : "aegisStand");
-    drawSprite(IMG.aegis, AEGIS_FRAMES[aPose], ax2, ay2, AEGIS_SCALE, false, 1, false);
+    let aPose = "aegisStand";
+    if (aegisGuard && !AEGIS_BEAT.active) aPose = "aegisGuard";
+    else if (AEGIS_BEAT.active && AEGIS_BEAT.phase === 0) aPose = AEGIS_BEAT.slashed ? "aegisSlash" : "aegisDive";
+    else if (AEGIS_BEAT.active && AEGIS_BEAT.phase === 2) aPose = Math.floor(AEGIS_BEAT.t * 7) % 2 === 0 ? "aegisRunA" : "aegisRunB";
+    const af = AEGIS_FRAMES[aPose];
+    drawSprite(IMG.aegis, af, ax2, ay2, af.s || AEGIS_SCALE, false, 1, false);
   }
   /* player — the defeat burst pose plays before the respawn */
   if (P.dead && P.deadT < 0.55){

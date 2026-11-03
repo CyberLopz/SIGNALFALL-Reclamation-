@@ -31,6 +31,6 @@ Collect data shards and 3 hidden data chips; find the Signal Heart (+2 max HP) a
 - **Feel**: hitstop on kills and on taking damage, trauma-based camera shake, a look-ahead camera that ignores small jumps, buffered dash input, enemy hit-shake, HP damage "ghost" bars and an MMX-style boss bar fill-up.
 - **Graphics (G)**: Full adds bloom, light pools and a foreground parallax layer; Performance drops them. Slow machines switch to Performance automatically once.
 
-## Repository status
+## Assets
 
-First commit carries the game code (`index.html`) and this README. The binary sprite atlases under `assets/` (16 PNG/JPG files, ~13 MB) are added with a direct `git push` — the connector upload channel used for this first commit accepts text files only.
+`assets/` holds the 17 sprite sheets and the Sector 7 background (~16 MB). The game loads 16 of them; `atlas-sable-p9-aim.png` (Sable aiming a rifle) is kept for reference but not wired in, because the current design fires from the pendant rather than a gun.
