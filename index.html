@@ -432,30 +432,63 @@ const FLUID_SCALE = 96 / 352;
    carries its own scale (s) that puts her at a consistent ~108px height.
    dive plays during the drop-in, runA/runB on the walk to her guard post. */
 const AEGIS_FRAMES = {
-  aegisStand:{x:1476,y:4,w:190,h:422,ax:102,ay:10,s:108 / 402},
-  aegisSlash:{x:926,y:4,w:542,h:432,ax:176,ay:10,s:108 / 402},
-  aegisGuard:{x:1670,y:520,w:234,h:349,ax:120,ay:10,s:108 / 329},
-  aegisDive:{x:466,y:520,w:483,h:416,ax:241,ay:10,s:108 / 329},
-  aegisRunA:{x:957,y:520,w:353,h:371,ax:290,ay:10,s:108 / 329},
-  aegisRunB:{x:1318,y:520,w:344,h:371,ax:284,ay:10,s:108 / 329}
+  aegisStand:{x:1476,y:4,w:190,h:422,ax:96,ay:10},
+  aegisRunA:{x:957,y:520,w:353,h:371,ax:261,ay:10},
+  aegisRunB:{x:1318,y:520,w:344,h:371,ax:254,ay:10},
+  aegisJump:{x:1674,y:4,w:259,h:417,ax:82,ay:10},
+  aegisFall:{x:4,y:520,w:454,h:417,ax:313,ay:10},
+  aegisSlash:{x:926,y:4,w:542,h:432,ax:174,ay:10},
+  aegisDrop:{x:466,y:520,w:483,h:416,ax:250,ay:10},
+  aegisGuard:{x:474,y:4,w:444,h:473,ax:216,ay:10},
+  aegisHurt:{x:1670,y:520,w:234,h:349,ax:112,ay:10},
+  aegisCast:{x:4,y:4,w:462,h:508,ax:235,ay:10}
 };
-const AEGIS_SCALE = 112 / 490;
-/* dialogue portraits (p3 strip, 13 x 256px): SABLE · AEGIS x5 expressions ·
-   RELAY x4 · the glitch face (unknown signal) · WRAITH · ECHO's crystal.
-   talk = the open-mouth frame shown on alternate beats while a line types. */
-const PCELL = (i) => ({ x:i * 256, y:0, w:256, h:256 });
+const AEGIS_SCALE = 112 / 402;
+/* dialogue portraits (atlas-portraits-p3): Aegis and Relay busts come
+   from row 3 of their approved Reclamation sheets — Aegis in five
+   expressions, Relay in four plus the full-glitch portrait for
+   corrupted transmissions. SABLE and WRAITH are crops of their
+   in-game sprites (Sable idle, the original Wraith sprite) and ECHO
+   is her holo diamond, as approved before. */
 const PORTRAIT_FRAMES = {
-  SABLE:PCELL(0),
-  AEGIS:Object.assign(PCELL(1), { talk:PCELL(3) }),
-  RELAY:Object.assign(PCELL(6), { talk:PCELL(7) }),
-  UNKNOWN:PCELL(10), WRAITH:PCELL(11), ECHO:PCELL(12)
+  SABLE:{x:0,y:0,w:256,h:256},
+  AEGIS:{x:256,y:0,w:256,h:256}, AEGIS_DET:{x:512,y:0,w:256,h:256},
+  AEGIS_SPK:{x:768,y:0,w:256,h:256}, AEGIS_ALM:{x:1024,y:0,w:256,h:256},
+  AEGIS_SOR:{x:1280,y:0,w:256,h:256},
+  RELAY:{x:1536,y:0,w:256,h:256}, RELAY_URG:{x:1792,y:0,w:256,h:256},
+  RELAY_FOC:{x:2048,y:0,w:256,h:256}, RELAY_GRIN:{x:2304,y:0,w:256,h:256},
+  RELAY_GLITCH:{x:2560,y:0,w:256,h:256},
+  WRAITH:{x:2816,y:0,w:256,h:256}, ECHO:{x:3072,y:0,w:256,h:256}
 };
+
+/* repo-build dialogue compatibility: this build's scenes address the
+   glitch face as UNKNOWN and animate AEGIS/RELAY portraits with a talk
+   frame. Both resolve to cells of the verified table above — UNKNOWN is
+   the RELAY_GLITCH cell (x=2560); the talk frames are the SPK/URG cells. */
+PORTRAIT_FRAMES.UNKNOWN = { x:2560, y:0, w:256, h:256 };
+PORTRAIT_FRAMES.AEGIS.talk = PORTRAIT_FRAMES.AEGIS_SPK;
+PORTRAIT_FRAMES.RELAY.talk = PORTRAIT_FRAMES.RELAY_URG;
 const SABLE2_SCALE = 96 / 400;
 const SABLE_SCALE = 96 / 395;      /* hero drawn ~96px tall */
 const WALKER_SCALE = 102 / 464;
 const DRONE_SCALE = 74 / 288;
 const TURRET_SCALE = 78 / 369;
 const WRAITH_SCALE = 208 / 463;
+
+/* dedicated BLASTER aim poses (atlas-sable-p9-aim, from the approved
+   v5 paneled-pistol sheet — grips corrected, gun palette-corrected to
+   matte black / bone-white / gunmetal / cyan). Every frame carries
+   mx,my = the exact muzzle-face pixel; bolts spawn tail-first from
+   that point of the DISPLAYED frame. The wall frame is authored
+   facing RIGHT (wall on his left) — see poseFlip. */
+const AIM_FRAMES = {
+  aimStand:{x:843,y:4,w:287,h:408,ax:91,ay:10,mx:274,my:182}, aimStandDiagUp:{x:1134,y:4,w:316,h:404,ax:88,ay:10,mx:293,my:15}, aimStandUp:{x:589,y:4,w:250,h:409,ax:88,ay:10,mx:192,my:12},
+  aimCrouch:{x:574,y:1250,w:371,h:292,ax:175,ay:10,mx:358,my:133}, aimRun:{x:390,y:891,w:418,h:336,ax:282,ay:10,mx:404,my:145}, aimAirFwd:{x:4,y:891,w:382,h:355,ax:177,ay:10,mx:369,my:148},
+  aimAirDiagDown:{x:4,y:489,w:366,h:398,ax:206,ay:10,mx:348,my:378}, aimAirDown:{x:4,y:4,w:252,h:481,ax:131,ay:10,mx:145,my:468}, aimAirDiagUp:{x:260,y:4,w:325,h:434,ax:145,ay:10,mx:297,my:14},
+  aimFallFwd:{x:374,y:489,w:399,h:376,ax:196,ay:10,mx:386,my:171}, aimWall:{x:812,y:891,w:371,h:315,ax:170,ay:10,mx:358,my:132}, aimDash:{x:4,y:1250,w:566,h:294,ax:299,ay:10,mx:553,my:120},
+  aimSlide:{x:1187,y:891,w:412,h:297,ax:202,ay:10,mx:399,my:125}, aimCharge:{x:777,y:489,w:410,h:374,ax:115,ay:10,mx:240,my:145}, aimBraced:{x:1191,y:489,w:336,h:372,ax:137,ay:10,mx:324,my:152}
+};
+const AIM_SCALE = 96 / 388;
 
 /* ---------------- asset loading with watchdog + retry ---------------- */
 const IMG = {};
@@ -493,6 +526,7 @@ async function loadAssets(){
     ["items", "assets/atlas-items-p1.png"],
     ["mech", "assets/atlas-mech-p1.png"],
     ["fluid", "assets/atlas-sable-p6-fluidity.png"],
+    ["aim", "assets/atlas-sable-p9-aim.png"],
     ["aegis", "assets/atlas-aegis-p3.png"],
     ["portraits", "assets/atlas-portraits-p3.png"],
     ["bg", "assets/bg-sector7.jpg"]
@@ -1275,7 +1309,7 @@ function resetPlayer(x, y){
   P.hp = 16; P.grounded = true; P.coyote = 0; P.jumpBuf = 0;
   P.dashT = 0; P.dashCd = 0; P.airDashed = false; P.dashDir = 1;
   P.wallDir = 0; P.wallJumpT = 0; P.slashT = 0; P.slashId = 0; P.slashHit = null;
-  P.shootPoseT = 0; P.lastShotBig = false; P.chargeT = 0; P.chargePinged = false;
+  P.shootPoseT = 0; P.bracedT = 0; P.lastShotBig = false; P.chargeT = 0; P.chargePinged = false;
   P.hurtT = 0; P.invulnT = 0; P.landT = 0; P.dead = false; P.deadT = 0;
   P.runDist = 0; P.lastGround = { x:x, y:y }; P.groundT = 0; P.wasGrounded = false;
   P.shotCd = 0; P.pendingShot = false; P.noCutT = 0; P.cutDone = false; P.wallSliding = false; P.slashDashing = false;
@@ -1537,7 +1571,7 @@ function updatePlayer(dt){
   /* timers */
   P.antT -= dt; P.riseT -= dt; P.fallT -= dt; P.dashRecT -= dt; P.turnT -= dt; P.wallSlapT -= dt;
   P.coyote -= dt; P.jumpBuf -= dt; P.dashCd -= dt; P.hurtT -= dt; P.invulnT -= dt; P.landT -= dt; P.noCutT -= dt; P.slideLatchT -= dt; P.auraBurstT -= dt;
-  P.shootPoseT -= dt; P.shotCd -= dt; P.wallJumpT -= dt;
+  P.shootPoseT -= dt; P.shotCd -= dt; P.wallJumpT -= dt; P.bracedT -= dt;
   P.dashStartT -= dt; P.wallJumpPoseT -= dt; P.landHardT -= dt;
   if (pressed.jump){ P.jumpBuf = 0.13; pressed.jump = false; }
   if (P.grounded){ P.coyote = 0.1; P.airDashed = false; P.spinUsed = false; P.wallChain = 0; }
@@ -1942,10 +1976,61 @@ function groundNearBelow(dist){
   }
   return false;
 }
+function aimVector(){
+  const dirIn = (IN.right ? 1 : 0) - (IN.left ? 1 : 0);
+  let ax = P.face, ay = 0;
+  if (IN.up && P.slideT <= 0 && !P.onLadder){ ay = -1; ax = dirIn; }
+  else if (IN.down && !P.grounded && !P.onLadder){ ay = 1; ax = dirIn; }
+  if (P.wallSliding){ ax = -P.slideLatch; ay = 0; }
+  return { ax:ax, ay:ay };
+}
+/* horizontal flip for a pose: every frame is authored facing right
+   EXCEPT aimWall, whose v5 art faces right with the wall on his LEFT,
+   so it flips when the wall is on his right (slideLatch > 0) — he
+   always fires away from the wall. */
+function poseFlip(name){
+  if (name === "aimWall") return P.slideLatch > 0;
+  return P.face < 0;
+}
+/* world position of the muzzle-face pixel of the named pose's frame,
+   exactly as drawSprite renders it (feet-anchored, flip-aware) */
+function muzzleWorld(name){
+  const pd = poseData(name);
+  if (!pd || !pd.f || pd.f.mx == null) return null;
+  const f = pd.f, s = pd.scale;
+  return { x: P.x + (poseFlip(name) ? -1 : 1) * (f.mx - f.ax) * s,
+           y: P.y - (f.h - (f.ay || 0) - f.my) * s };
+}
+/* the aim pose for the current state while firing / holding charge /
+   inside the ~250ms aim-hold window after a shot — null when the
+   underlying state pose should show instead */
+function aimPoseKey(){
+  if (P.slashT > 0 || P.poseFxT > 0) return null;   /* sword and story beats keep their poses */
+  if (!(IN.shot || P.chargeT > 0 || P.shootPoseT > 0)) return null;
+  const av = aimVector();
+  if (P.wallSliding) return "aimWall";
+  if (P.slideT > 0) return "aimSlide";
+  if (P.dashT > 0) return "aimDash";
+  if (!P.grounded){
+    if (av.ay < 0) return av.ax === 0 ? "aimStandUp" : "aimAirDiagUp";
+    if (av.ay > 0) return av.ax === 0 ? "aimAirDown" : "aimAirDiagDown";
+    return P.vy > 60 ? "aimFallFwd" : "aimAirFwd";
+  }
+  if (IN.down) return "aimCrouch";
+  if (Math.abs(P.vx) > 12) return "aimRun";
+  if (av.ay < 0) return av.ax === 0 ? "aimStandUp" : "aimStandDiagUp";
+  if (P.bracedT > 0 && P.lastShotBig) return "aimBraced";
+  if (IN.shot && P.chargeT > 0) return "aimCharge";
+  return "aimStand";
+}
+
+
 function currentPoseName(){
   if (P.dead) return "defeat";
   if (P.hurtT > 0) return P.hurtAir ? "airhurt" : "knockSlide";   /* ground knockback digs the blade in */
   if (P.onLadder) return Math.floor(P.climbDist / 26) % 2 === 0 ? "climbA" : "climbB";
+  const aimPose = aimPoseKey();
+  if (aimPose) return aimPose;
   if (P.slideT > 0) return "slide";
   if (P.poseFxT > 0 && P.poseFx) return P.poseFx;
   if (P.slashT > 0){
@@ -1961,12 +2046,6 @@ function currentPoseName(){
   }
   if (P.wallJumpPoseT > 0 && !P.grounded)
     return P.wallChain >= 2 ? (Math.floor(stageTime * 13) % 2 === 0 ? "flipA" : "flipB") : "walljump";
-  if (P.shootPoseT > 0){
-    /* firing has its own poses per state now — never the standing shot mid-run */
-    if (!P.grounded && !P.wallSliding) return "airShoot";
-    if (P.grounded && Math.abs(P.vx) > 12) return "runShoot";
-    return P.lastShotBig ? "chargeshot" : "shoot";
-  }
   if (P.wallSliding) return P.wallSlapT > 0 ? "wallSlap" : (P.wallAwayT >= 1 ? "walllook" : (P.ledgeHang ? "wallgrip" : "wallslide"));
   if (!P.grounded){
     if (P.antT > 0 && P.vy < 60) return "jumpAnt";            /* anticipation crouch, visual overlap */
@@ -1999,6 +2078,8 @@ function currentPoseName(){
 }
 /* poses live in one of two atlases: the p3 movement sheet or the p4 sword sheet */
 function poseData(name){
+  const af = AIM_FRAMES[name];
+  if (af) return { img:IMG.aim, f:af, scale:AIM_SCALE };
   const ff = FLUID_FRAMES[name];
   if (ff) return { img:IMG.fluid, f:ff, scale:FLUID_SCALE };
   const sf = SWORD_FRAMES[name];
@@ -2071,39 +2152,43 @@ function onBladeHit(x, y){
 }
 function fireShot(){
   const lvl = P.chargeT >= 1.1 ? 2 : (P.chargeT >= 0.5 ? 1 : 0);
-  /* AIM: the blaster follows ↑/↓. Airborne ↓ fires DIAGONALLY DOWN
-     toward the held direction — straight down when no direction is
-     held; ↑ fires diagonally up, or straight up. Grounded shots stay
-     horizontal (the classic crouch shot), and ladder shots stay
-     horizontal so climbing never bends a shot by accident. Bolts were
-     horizontal-only before: a diagonal-down shot never left the
-     pendant — only the charge orb showed. */
-  const dirIn = (IN.right ? 1 : 0) - (IN.left ? 1 : 0);
-  let ax = P.face, ay = 0;
-  if (IN.up && P.slideT <= 0 && !P.onLadder){ ay = -1; ax = dirIn; }
-  else if (IN.down && !P.grounded && !P.onLadder){ ay = 1; ax = dirIn; }
+  /* AIM + MUZZLE TRUTH: the shot leaves from the muzzle face of the
+     pose that is DISPLAYED on this exact frame. The aim state is set
+     BEFORE the pose is resolved, so the visible gun and the bolt
+     origin always agree — no pendant-origin shots remain. */
+  const av = aimVector();
+  const ax = av.ax, ay = av.ay;
   const spd = lvl === 2 ? 760 : (lvl === 1 ? 700 : 660);
   const vx = ax * spd * ((ax !== 0 && ay !== 0) ? Math.SQRT1_2 : 1);
   const vy = ay * spd * (ax !== 0 ? Math.SQRT1_2 : 1);
-  const mx = P.x + ax * 26 + (ax === 0 ? P.face * 6 : 0);
-  const my = P.y - 40 + ay * 22 + (ay < 0 ? -8 : 0);
+  P.lastShotBig = lvl === 2;
+  P.shootPoseT = 0.25;                       /* aim-hold window ~250ms */
+  P.bracedT = lvl === 2 ? 0.16 : 0;          /* full-charge release from stand shows the BRACED frame */
+  P.shotCd = lvl === 2 ? 0.31 : 0.16;
+  const mz = muzzleWorld(currentPoseName());
+  const mx = mz ? mz.x : P.x + ax * 26;      /* fallback only for non-aim poses (hurt/dead) */
+  const my = mz ? mz.y : P.y - 40;
   /* CHARGE BALANCE: tap 1 · mid 1 (faster, bigger visual, no pierce) ·
      FULL 2 with pierce — a line-clearing tool and the shield-walker
      answer, not a boss-melter. Full release also carries ~150ms of
      extra recovery before the next charge can start. */
+  /* TAIL ANCHOR: a bolt's (x, y) is its TAIL, spawned exactly at the
+     muzzle; the rendered streak extends forward along the velocity
+     for len px and nowhere else. (The old centre-anchored blob drew
+     half its body behind the spawn point — a bar spearing back
+     through Sable on diagonal shots.) */
   if (lvl === 2){
-    pBolts.push({ x:mx, y:my, vx:vx, vy:vy, r:13, dmg:2, pierce:true, big:true }); SFX.shotBig();
+    pBolts.push({ x:mx, y:my, vx:vx, vy:vy, r:13, len:52, dmg:2, pierce:true, big:true }); SFX.shotBig();
     /* the carried aura discharges in a burst as the shot leaves */
     P.auraBurstT = 0.28;
     spawnParticles(P.x + P.face * 5, P.y - 41, 20, ["#7df3ff", "#ffffff", "#9a6bff", "#35e0ff"], 260, 0.45, 60);
   }
-  else if (lvl === 1){ pBolts.push({ x:mx, y:my, vx:vx, vy:vy, r:8, dmg:1, pierce:false }); SFX.shotMid(); }
-  else { pBolts.push({ x:mx, y:my, vx:vx, vy:vy, r:5, dmg:1, pierce:false }); SFX.shot(); }
-  P.lastShotBig = lvl === 2;
+  else if (lvl === 1){ pBolts.push({ x:mx, y:my, vx:vx, vy:vy, r:8, len:38, dmg:1, pierce:false }); SFX.shotMid(); }
+  else { pBolts.push({ x:mx, y:my, vx:vx, vy:vy, r:5, len:27, dmg:1, pierce:false }); SFX.shot(); }
+  spawnParticles(mx, my, 3, ["#7df3ff"], 60, 0.15, 0);
+  /* repo-build presentation, preserved: muzzle light pool + full-charge camera kick */
   spawnLight(mx, my, lvl === 2 ? 120 : (lvl === 1 ? 74 : 52), "120,230,255", lvl === 2 ? 0.2 : 0.09, lvl === 2 ? 0.9 : 0.6);
   if (lvl === 2){ kick(-(ax || 0) * 5, -ay * 5); shakeT = Math.max(shakeT, 0.14); }
-  P.shootPoseT = 0.24; P.shotCd = lvl === 2 ? 0.31 : 0.16;
-  spawnParticles(mx, my, 3, ["#7df3ff"], 60, 0.15, 0);
 }
 function slashHits(){
   /* hitbox synced to the active move's arc */
@@ -2584,11 +2669,23 @@ function updateProjectiles(dt){
   };
   for (const b of pBolts){
     b.x += b.vx * dt; b.y += (b.vy || 0) * dt;
-    let kill = b.x < camX - 80 || b.x > camX + VW + 80 || b.y < camY - 90 || b.y > camY + VH + 90 || hitSolid(b.x, b.y);
+    /* shot bolts are tail-anchored: (b.x, b.y) is the tail and the body
+       runs forward along the velocity for b.len px, so collisions test
+       the streak's centre and head. Blade-beam crescents carry no len
+       and keep their old centre-point tests. */
+    let cx = b.x, cy = b.y, hx = b.x, hy = b.y;
+    if (b.len){
+      const s = Math.hypot(b.vx, b.vy || 0) || 1;
+      const ux = b.vx / s, uy = (b.vy || 0) / s;
+      cx = b.x + ux * b.len * 0.5; cy = b.y + uy * b.len * 0.5;
+      hx = b.x + ux * b.len; hy = b.y + uy * b.len;
+    }
+    const hitAt = (px, py, bx) => px > bx.x - b.r && px < bx.x + bx.w + b.r && py > bx.y - b.r && py < bx.y + bx.h + b.r;
+    let kill = cx < camX - 80 || cx > camX + VW + 80 || cy < camY - 90 || cy > camY + VH + 90 || hitSolid(cx, cy);
     if (!kill){   /* shells and big orbs can be shot down mid-flight */
       for (const s of eBolts){
         if (s.dead || !(s.shell || s.bigorb)) continue;
-        if (Math.abs(b.x - s.x) < b.r + s.r && Math.abs(b.y - s.y) < b.r + s.r){
+        if (Math.abs(cx - s.x) < b.r + s.r && Math.abs(cy - s.y) < b.r + s.r){
           s.hp = (s.hp || 1) - b.dmg; kill = !b.pierce;
           if (s.hp <= 0){ s.dead = true; spawnBoom(s.x, s.y, 0.85); SFX.boom(s.x); }
           else SFX.hit(s.x);
@@ -2600,20 +2697,20 @@ function updateProjectiles(dt){
       for (const e of enemies){
         if (e.dead) continue;
         const bx = enemyBox(e);
-        if (b.x > bx.x - b.r && b.x < bx.x + bx.w + b.r && b.y > bx.y - b.r && b.y < bx.y + bx.h + b.r){
-          const blocked = damageEnemy(e, b.dmg, Math.sign(b.vx), { beam:!!b.beam, srcX:b.x - Math.sign(b.vx) * 12 });
+        if (hitAt(cx, cy, bx) || hitAt(hx, hy, bx)){
+          const blocked = damageEnemy(e, b.dmg, Math.sign(b.vx), { beam:!!b.beam, srcX:cx - Math.sign(b.vx) * 12 });
           kill = blocked ? true : !b.pierce; break;
         }
       }
     }
     if (!kill && B.state === "fight"){
       const bx = bossBox();
-      if (b.x > bx.x - b.r && b.x < bx.x + bx.w + b.r && b.y > bx.y - b.r && b.y < bx.y + bx.h + b.r){
-        const blocked = damageBoss(b.dmg, { beam:!!b.beam, srcX:b.x - Math.sign(b.vx) * 12 });
+      if (hitAt(cx, cy, bx) || hitAt(hx, hy, bx)){
+        const blocked = damageBoss(b.dmg, { beam:!!b.beam, srcX:cx - Math.sign(b.vx) * 12 });
         kill = blocked ? true : !b.pierce;
       }
     }
-    if (kill && !b.dead){ b.dead = true; spawnParticles(b.x, b.y, 4, ["#7df3ff"], 80, 0.2, 0); }
+    if (kill && !b.dead){ b.dead = true; spawnParticles(hx, hy, 4, ["#7df3ff"], 80, 0.2, 0); }
   }
   pBolts = pBolts.filter((b) => !b.dead);
   for (const b of eBolts){
@@ -3816,16 +3913,21 @@ function drawWorld(){
     ctx.beginPath(); ctx.arc(0, 0, a.r, -1.15, 1.15); ctx.stroke();
     ctx.restore();
   }
-  /* Aegis in person: the yard beat, then her guard post at the yard exit */
+  /* Aegis in person: the yard beat, then her guard post at the yard exit.
+     Beat poses from her approved sheet: the RESCUE DROP dives her in,
+     the LANCE STRIKE lands the hit (flipped — the walker is on her
+     left), she stands for the yard dialogue, then runs to her post
+     and holds it in the GUARD pose. */
   if (IMG.aegis && (AEGIS_BEAT.active || aegisGuard)){
     const ax2 = (aegisGuard && !AEGIS_BEAT.active) ? AEGIS_GUARD_X : AEGIS_BEAT.x;
     const ay2 = (aegisGuard && !AEGIS_BEAT.active) ? 440 : AEGIS_BEAT.y;
-    let aPose = "aegisStand";
-    if (aegisGuard && !AEGIS_BEAT.active) aPose = "aegisGuard";
-    else if (AEGIS_BEAT.active && AEGIS_BEAT.phase === 0) aPose = AEGIS_BEAT.slashed ? "aegisSlash" : "aegisDive";
-    else if (AEGIS_BEAT.active && AEGIS_BEAT.phase === 2) aPose = Math.floor(AEGIS_BEAT.t * 7) % 2 === 0 ? "aegisRunA" : "aegisRunB";
-    const af = AEGIS_FRAMES[aPose];
-    drawSprite(IMG.aegis, af, ax2, ay2, af.s || AEGIS_SCALE, false, 1, false);
+    let aPose = "aegisGuard", aFlip = false;
+    if (AEGIS_BEAT.active){
+      if (AEGIS_BEAT.phase === 0){ aPose = AEGIS_BEAT.slashed ? "aegisSlash" : "aegisDrop"; aFlip = true; }
+      else if (AEGIS_BEAT.phase === 2){ aPose = (Math.floor(stageTime * 7) % 2 === 0) ? "aegisRunA" : "aegisRunB"; }
+      else aPose = "aegisStand";
+    }
+    drawSprite(IMG.aegis, AEGIS_FRAMES[aPose], ax2, ay2, AEGIS_SCALE, aFlip, 1, false);
   }
   /* player — the defeat burst pose plays before the respawn */
   if (P.dead && P.deadT < 0.55){
@@ -3837,7 +3939,7 @@ function drawWorld(){
     if (!blink){
       const pose = currentPoseName();
       const pd = poseData(pose);
-      drawSprite(pd.img, pd.f, P.x, P.y, pd.scale, P.face < 0, 1, P.hurtT > 0.2);
+      drawSprite(pd.img, pd.f, P.x, P.y, pd.scale, poseFlip(pose), 1, P.hurtT > 0.2);
       /* standalone trail FX sprites + impact bursts (sword atlas) */
       for (const fx of swordFx){
         const ff = SWORD_FRAMES[fx.f];
@@ -3892,16 +3994,23 @@ function drawWorld(){
       continue;
     }
     ctx.save();
-    /* oriented along the velocity, so diagonal and vertical shots
-       streak the way they actually travel */
+    /* TAIL-ANCHORED streak, rotated about the tail: every part of the
+       bolt is drawn at x >= 0 along its velocity axis, from the tail
+       (spawned at the muzzle) to the head b.len px forward — diagonal
+       and vertical shots streak the way they travel and never spear
+       back through Sable. */
     ctx.translate(b.x, b.y);
     ctx.rotate(Math.atan2(b.vy || 0, b.vx));
+    const bl = b.len || b.r * 4;
+    ctx.lineCap = "butt";
     ctx.shadowColor = "#35e0ff"; ctx.shadowBlur = b.big ? 20 : 12;
-    ctx.fillStyle = b.big ? "#eaffff" : "#8ff2ff";
-    ctx.beginPath(); ctx.arc(0, 0, b.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = "rgba(53,224,255,0.32)"; ctx.lineWidth = b.r * 1.7;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(bl, 0); ctx.stroke();
+    ctx.strokeStyle = b.big ? "#eaffff" : "#8ff2ff"; ctx.lineWidth = b.r * 0.95;
+    ctx.beginPath(); ctx.moveTo(b.r * 0.4, 0); ctx.lineTo(bl, 0); ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(53,224,255,0.35)";
-    ctx.beginPath(); ctx.arc(-b.r * 1.4, 0, b.r * 0.62, 0, 7); ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath(); ctx.arc(bl - b.r * 0.45, 0, b.r * 0.45, 0, 7); ctx.fill();
     ctx.restore();
   }
   for (const b of eBolts){
