@@ -1,10 +1,14 @@
 # SIGNALFALL Reclamation
 
+**▶ [Play in your browser](https://cyberlopz.github.io/SIGNALFALL-Reclamation-/)** — no download, no install.
+
 **Chapter 1 — First Signal.** A Mega Man X-style action platformer: Sable, first of the Rewritten, fights through the Sector 7 relay station to relight its beacon and face the Static Wraith.
 
 ## Play
 
-Serve this folder (for example `python3 -m http.server`) and open `index.html`, or just open `index.html` in a browser. The `assets/` folder must sit next to `index.html` — it holds the sprite atlases and the stage background. Sound and music are synthesized in-page (WebAudio); there are no audio files.
+Play it live at **https://cyberlopz.github.io/SIGNALFALL-Reclamation-/** (served from this repo via GitHub Pages).
+
+To run it locally instead: serve this folder (for example `python3 -m http.server`) and open `index.html`, or just open `index.html` in a browser. The `assets/` folder must sit next to `index.html` — it holds the sprite atlases and the stage background. Sound and music are synthesized in-page (WebAudio); there are no audio files.
 
 ## Controls
 
