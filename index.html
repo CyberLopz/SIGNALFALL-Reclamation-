@@ -489,6 +489,28 @@ const AIM_FRAMES = {
   aimSlide:{x:1187,y:891,w:412,h:297,ax:202,ay:10,mx:399,my:125}, aimCharge:{x:777,y:489,w:410,h:374,ax:115,ay:10,mx:240,my:145}, aimBraced:{x:1191,y:489,w:336,h:372,ax:137,ay:10,mx:324,my:152}
 };
 const AIM_SCALE = 96 / 388;
+/* dedicated LADDER-SHOOT poses (atlas-sable-p10-laddershoot): back-view
+   Sable gripping the ladder with his LEFT hand high, blaster in his
+   right — cells 1-3 of the ladder-shoot sheet plus the standalone
+   charged pose (the sheet's cell-4 orb was clipped by the source's own
+   right edge, so it was replaced). Same extraction discipline as p9:
+   palette-corrected gun (tan -> bone-white, bronze -> gunmetal, orange
+   tip -> cyan-lit; skin barrier verified on every grip), binary key,
+   full content with 10px transparent padding inside every rect — zero
+   content touches a rect edge, orb and spark shards included. ax is
+   the GRIPPING hand's center (maps to the ladder center line, like the
+   climb frames), ay matches the climb frames, mx,my = the measured
+   muzzle-face pixel (charged = the orb's outer edge on the barrel
+   axis). Each frame carries its own s so all four render at the climb
+   frames' grip-to-feet scale despite the charged source's larger
+   native render. */
+const LADDER_AIM_FRAMES = {
+  ladderShootFwd:{x:4,y:4,w:688,h:983,ax:85,ay:10,mx:673,my:456,s:0.0977},
+  ladderShootDiagUp:{x:700,y:4,w:468,h:1028,ax:90,ay:10,mx:421,my:15,s:0.0982},
+  ladderShootDiagDown:{x:4,y:1040,w:526,h:968,ax:145,ay:10,mx:486,my:881,s:0.0994},
+  ladderShootCharge:{x:538,y:1040,w:1336,h:1200,ax:312,ay:10,mx:1264,my:438,s:0.0783}
+};
+const LADDER_AIM_SCALE = 96 / 983;
 
 /* ---------------- asset loading with watchdog + retry ---------------- */
 const IMG = {};
@@ -527,6 +549,7 @@ async function loadAssets(){
     ["mech", "assets/atlas-mech-p1.png"],
     ["fluid", "assets/atlas-sable-p6-fluidity.png"],
     ["aim", "assets/atlas-sable-p9-aim.png"],
+    ["laddershoot", "assets/atlas-sable-p10-laddershoot.png"],
     ["aegis", "assets/atlas-aegis-p3.png"],
     ["portraits", "assets/atlas-portraits-p3.png"],
     ["bg", "assets/bg-sector7.jpg"]
@@ -1731,7 +1754,11 @@ function updatePlayer(dt){
   }
   if (P.onLadder){
     P.wallSliding = false;
-    const cv = (IN.down ? 1 : 0) - (IN.up ? 1 : 0);
+    /* while a ladder-shoot pose is displayed he HOLDS POSITION to shoot
+       (Mega Man X style) — climbing and the ledge mount pause, and
+       resume the moment the aim-hold window lapses */
+    const ladderShooting = !!ladderShootPose();
+    const cv = ladderShooting ? 0 : (IN.down ? 1 : 0) - (IN.up ? 1 : 0);
     P.vy = cv * 168; P.vx = 0;
     const cdPrev = P.climbDist;
     P.climbDist += Math.abs(P.vy) * dt;
@@ -1741,7 +1768,7 @@ function updatePlayer(dt){
       P.onLadder = false; P.jumpBuf = 0;
       P.vy = -560; P.vx = (inputDir !== 0 ? inputDir : P.face) * 150;
       SFX.jump();
-    } else if (P.y <= LADDER.top + 66 && IN.up){
+    } else if (P.y <= LADDER.top + 66 && IN.up && !ladderShooting){
       P.onLadder = false; P.x = 2000; P.y = LADDER.top; P.vy = 0; P.grounded = true;
       P.poseFx = "ledgemount"; P.poseFxT = 0.32;
     } else if (P.y >= LADDER.bottom + 12){
@@ -2025,10 +2052,29 @@ function aimPoseKey(){
 }
 
 
+/* the ladder-shoot pose for the current state while firing / holding
+   a charge / inside the ~250ms aim-hold window after a shot — null
+   when the climb cycle should show instead. Direction comes from the
+   aim input exactly as the ladder shots resolve it; at full charge
+   the CHARGED frame (orb at the muzzle) wins over direction. His
+   gripping hand stays on the ladder in all four frames. */
+function ladderShootPose(){
+  if (!P.onLadder) return null;
+  if (P.slashT > 0 || P.poseFxT > 0) return null;   /* sword and story beats keep their poses */
+  if (!(IN.shot || P.chargeT > 0 || P.shootPoseT > 0)) return null;
+  if (P.chargeT >= 1.1) return "ladderShootCharge";
+  if (IN.up) return "ladderShootDiagUp";
+  if (IN.down) return "ladderShootDiagDown";
+  return "ladderShootFwd";
+}
 function currentPoseName(){
   if (P.dead) return "defeat";
   if (P.hurtT > 0) return P.hurtAir ? "airhurt" : "knockSlide";   /* ground knockback digs the blade in */
-  if (P.onLadder) return Math.floor(P.climbDist / 26) % 2 === 0 ? "climbA" : "climbB";
+  if (P.onLadder){
+    const lp = ladderShootPose();
+    if (lp) return lp;
+    return Math.floor(P.climbDist / 26) % 2 === 0 ? "climbA" : "climbB";
+  }
   const aimPose = aimPoseKey();
   if (aimPose) return aimPose;
   if (P.slideT > 0) return "slide";
@@ -2078,6 +2124,8 @@ function currentPoseName(){
 }
 /* poses live in one of two atlases: the p3 movement sheet or the p4 sword sheet */
 function poseData(name){
+  const lf = LADDER_AIM_FRAMES[name];
+  if (lf) return { img:IMG.laddershoot, f:lf, scale:lf.s || LADDER_AIM_SCALE };
   const af = AIM_FRAMES[name];
   if (af) return { img:IMG.aim, f:af, scale:AIM_SCALE };
   const ff = FLUID_FRAMES[name];
@@ -2156,16 +2204,29 @@ function fireShot(){
      pose that is DISPLAYED on this exact frame. The aim state is set
      BEFORE the pose is resolved, so the visible gun and the bolt
      origin always agree — no pendant-origin shots remain. */
-  const av = aimVector();
-  const ax = av.ax, ay = av.ay;
-  const spd = lvl === 2 ? 760 : (lvl === 1 ? 700 : 660);
-  const vx = ax * spd * ((ax !== 0 && ay !== 0) ? Math.SQRT1_2 : 1);
-  const vy = ay * spd * (ax !== 0 ? Math.SQRT1_2 : 1);
   P.lastShotBig = lvl === 2;
   P.shootPoseT = 0.25;                       /* aim-hold window ~250ms */
   P.bracedT = lvl === 2 ? 0.16 : 0;          /* full-charge release from stand shows the BRACED frame */
   P.shotCd = lvl === 2 ? 0.31 : 0.16;
-  const mz = muzzleWorld(currentPoseName());
+  /* LADDER SHOTS: with the aim state set, the DISPLAYED ladder-shoot
+     pose is resolved (full charge -> the orb frame, else by up/down
+     input) and the bolt leaves along THAT pose's aim direction,
+     flip-aware — aimVector's ground/air rules do not apply on the
+     ladder. Same damage, pierce, cooldown and queue rules as ground
+     shots. */
+  const firePose = currentPoseName();
+  let ax, ay;
+  if (P.onLadder && LADDER_AIM_FRAMES[firePose]){
+    ax = P.face;
+    ay = firePose === "ladderShootDiagUp" ? -1 : (firePose === "ladderShootDiagDown" ? 1 : 0);
+  } else {
+    const av = aimVector();
+    ax = av.ax; ay = av.ay;
+  }
+  const spd = lvl === 2 ? 760 : (lvl === 1 ? 700 : 660);
+  const vx = ax * spd * ((ax !== 0 && ay !== 0) ? Math.SQRT1_2 : 1);
+  const vy = ay * spd * (ax !== 0 ? Math.SQRT1_2 : 1);
+  const mz = muzzleWorld(firePose);
   const mx = mz ? mz.x : P.x + ax * 26;      /* fallback only for non-aim poses (hurt/dead) */
   const my = mz ? mz.y : P.y - 40;
   /* CHARGE BALANCE: tap 1 · mid 1 (faster, bigger visual, no pierce) ·
