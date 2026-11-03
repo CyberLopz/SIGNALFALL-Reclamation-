@@ -1193,7 +1193,7 @@ const SOLIDS = [
   [5560, 950, 40, 400],               /* stairwell pit west wall */
   [5600, 1290, 220, 60],              /* stairwell pit floor (bounce pad) */
   [5760, 1130, 90, 16],               /* pit recovery ledge */
-  [5820, 1010, 40, 340],              /* pit east wall */
+  [5820, 1050, 40, 300],              /* pit east wall — top FLUSH with the 5846 step (1050): at 1010 it jutted 14px into the flight-B stair passage and blocked the two top rises from ever being stepped (found by the step-up flight verification); bottom still seals the pit to y=1350 */
   [6076, 1130, 324, 190],             /* mid landing / shaft mouth */
   [6180, 950, 44, 16], [6256, 950, 74, 16],   /* shaft chip ledge (ladder 1) — split: the ladder climbs through the gap */
   /* --- MINE SHAFT (ledge drops) --- */
@@ -1257,7 +1257,8 @@ const MOVERS = [
 ];
 const CHECKPOINTS = [
   { x:2900, floorY:470, active:false },   /* CP1: the relay beacon, rooftop gantry */
-  { x:13350, floorY:1760, active:false }  /* CP2: shield corridor entrance (in the pit-jump landing zone — at 13200 a clean dash-jump sailed over its band) */
+  { x:13350, floorY:1760, active:false }, /* CP2: shield corridor entrance (in the pit-jump landing zone — at 13200 a clean dash-jump sailed over its band) */
+  { x:16430, floorY:1130, active:false }  /* CP3: climb-out mid landing, AT the ladder-3 top-out (exitX 16430) — topping out places Sable dead-center in its band, so it cannot be sailed over or walked around (the CP2 lesson); respawn footing is the landing's west piece (16280-16484) */
 ];
 const PICKUPS_DEF = [
   { x:570, y:318, big:false },          /* rooftops hop platform */
@@ -1382,7 +1383,8 @@ const SHARD_DEFS = [
   { x:3060, y:232 }, { x:3120, y:232 },                                                          /* gantry lift platform */
   { x:16480, y:1420 },                                                                           /* climb ladder line */
   { x:17065, y:1010 }, { x:17065, y:760 },                                                       /* chimney wall-jump line */
-  { x:18660, y:365 }, { x:18720, y:318 }, { x:18780, y:305 }, { x:18840, y:335 }, { x:18900, y:390 }  /* bridge dash arc */
+  { x:18660, y:365 }, { x:18720, y:318 }, { x:18780, y:305 }, { x:18840, y:335 }, { x:18900, y:390 },  /* bridge dash arc */
+  { x:19200, y:436 }, { x:19480, y:424 }, { x:19760, y:418 }, { x:20040, y:424 }, { x:20320, y:436 }, { x:20600, y:440 }  /* rain bridge breather trail: a gentle arc over the deck in the enemy-free mid-span — every point sits over solid deck, collected on a running pass */
 ];
 /* A3 WADE: feet inside a zone = wading (slow + splash); the pool floor
    is an ordinary solid — water is never a pit */
@@ -1395,6 +1397,10 @@ const BREAKABLE = { x:13400, y:1990, w:36, h:130, broken:false };
    (heavy damage + knockback, NEVER a pit kill) -> hold -> retract */
 const CRUSHER = { x:9450, w:96, floorY:1760, restBottom:1600, headH:64, state:"idle", t:0, bottom:1600 };
 /* boss gate: TWO proximity shutters with a corridor between (gate scene) */
+/* WRAITH RESPAWN OVERRIDE (Mega Man X style): dying inside the sealed
+   chamber restarts here — the gate floor's west end, before door 1 —
+   instead of at the last checkpoint. The corridor replay is the runback. */
+const BOSS_GATE_RESPAWN = { x:20860, y:470 };
 const GATE_DOORS = [
   { x:21100, top:270, w:40, h:200, open:0, locked:false },
   { x:21450, top:270, w:40, h:200, open:0, locked:false }
@@ -1897,10 +1903,19 @@ function updatePlayer(dt){
   if (P.dead){
     P.deadT += dt;
     if (P.deadT > 1.05){
-      resetPlayer(respawnPoint.x, respawnPoint.y);
+      /* WRAITH OVERRIDE: a death inside the sealed chamber (boss engaged,
+         boss not yet dead, Sable physically in the arena) respawns at the
+         BOSS GATE entrance, not the checkpoint — Mega Man X runback rules.
+         resetStage(false) below re-arms both gate doors, clears
+         bossTriggered/sealActive and resets the Wraith to full HP, so the
+         corridor, the trigger and SCENE_WRAITH_PRE all replay cleanly.
+         The checkpoint respawnPoint itself is left untouched. */
+      const wraithRunback = bossTriggered && B.state !== "dead" && P.x > 23000;
+      const rp = wraithRunback ? BOSS_GATE_RESPAWN : respawnPoint;
+      resetPlayer(rp.x, rp.y);
       resetStage(false);
       camSnap();
-      toast("SIGNAL RE-LOCKED", 1.2);
+      toast(wraithRunback ? "SIGNAL RE-LOCKED — BOSS GATE" : "SIGNAL RE-LOCKED", 1.2);
     }
     return;
   }
