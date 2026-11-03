@@ -97,6 +97,22 @@
   .clearstats{ font-family:"Orbitron",sans-serif; font-size:clamp(15px,2.6vw,22px); letter-spacing:.14em; margin:8px 0 2px; }
   .clearstats span{ color:var(--cyan); }
   .nextnote{ color:var(--violet); font-family:"Orbitron",sans-serif; letter-spacing:.3em; font-size:clamp(11px,2vw,15px); margin:14px 0 24px; }
+  .rankline{ color:var(--dim); font-family:"Orbitron",sans-serif; font-size:clamp(11px,1.8vw,14px); letter-spacing:.14em; margin:0 0 16px; }
+  .rankline span{ color:var(--cyan); font-weight:700; }
+
+  /* ---------- MMX-style clear rank badge ---------- */
+  .rankbadge{ margin:6px 0; }
+  .rankletter{
+    display:inline-block; font-family:"Orbitron",sans-serif; font-weight:900;
+    font-size:clamp(44px,9vw,86px); line-height:1; color:#9aa3c7;
+    opacity:0; transform:scale(.35) rotate(-16deg);
+    transition:opacity .45s ease-out, transform .5s cubic-bezier(.2,1.3,.4,1.15), color .2s, text-shadow .2s;
+  }
+  .rankletter.show{ opacity:1; transform:scale(1) rotate(0deg); }
+  .rankletter.s{ color:#ffd76a; text-shadow:0 0 30px rgba(255,215,106,.75), 0 0 70px rgba(255,215,106,.4); }
+  .rankletter.a{ color:var(--cyan); text-shadow:0 0 24px rgba(53,224,255,.6); }
+  .rankletter.b{ color:var(--violet); text-shadow:0 0 18px rgba(154,107,255,.5); }
+  .rankletter.c{ color:#9aa3c7; text-shadow:none; }
 
   /* ---------- touch controls (gameplay only) ---------- */
   #touch{ position:absolute; inset:0; z-index:15; pointer-events:none; display:none; }
@@ -160,6 +176,7 @@
     <h1 class="title">RECLA<span class="violet">MATION</span></h1>
     <p class="stageline">CHAPTER 1 — FIRST SIGNAL</p>
     <p class="flavor">“The records lie. The relay still screams.”</p>
+    <p class="rankline hidden" id="titleBestRank">BEST CLEAR RANK <span id="titleBestRankLetter">S</span></p>
     <button class="bigbtn" id="btnStart" disabled>PRESS START</button>
     <div class="loadbar"><div id="loadFill"></div></div>
     <div class="loadmsg" id="loadMsg">LOADING SPRITES…</div>
@@ -196,8 +213,10 @@
     <p class="kicker">Static Wraith — Destroyed · Core Relit</p>
     <canvas id="victoryCanvas" width="150" height="196" aria-hidden="true"></canvas>
     <h1 class="title" style="font-size:clamp(24px,4.8vw,46px)">SIGNAL RESTORED<br /><span class="violet">CHAPTER 1 COMPLETE</span></h1>
+    <div class="rankbadge"><span class="rankletter" id="rankLetter">C</span></div>
     <p class="clearstats">CLEAR TIME <span id="clearTime">0:00</span></p>
     <p class="clearstats">SHARDS <span id="clearShards">◆ 0</span> · DATA <span id="clearData">0/3</span></p>
+    <p class="clearstats" style="font-size:.74em">DAMAGE TAKEN <span id="clearDamage">0</span></p>
     <p class="nextnote">CHAPTER 2 — IN PRODUCTION</p>
     <button class="bigbtn" id="btnAgain">RUN IT AGAIN</button>
   </div>
@@ -758,7 +777,24 @@ const SFX = {
   heartbeat(){ tone(70, 40, 0.12, "sine", 0.14); tone(70, 40, 0.1, "sine", 0.09, 0.17); },
   start(){ tone(220, 880, 0.35, "sawtooth", 0.05, 0, { verb:0.4 }); [440, 660, 880].forEach((f, i) => tone(f, f, 0.12, "square", 0.04, 0.2 + i * 0.07, { verb:0.4 })); },
   death(){ for (let i = 0; i < 6; i++) tone(880 - i * 110, 700 - i * 100, 0.1, "square", 0.06, i * 0.07, { verb:0.5 }); noise(0.6, 0.12, 4000, 200, 0, { verb:0.4 }); },
-  victory(){ const n = [62, 66, 69, 74, 78, 81, 86]; n.forEach((m, i) => tone(mtof(m), mtof(m), i === n.length - 1 ? 0.7 : 0.13, "square", 0.05, i * 0.09, { verb:0.5 })); }
+  victory(){ const n = [62, 66, 69, 74, 78, 81, 86]; n.forEach((m, i) => tone(mtof(m), mtof(m), i === n.length - 1 ? 0.7 : 0.13, "square", 0.05, i * 0.09, { verb:0.5 })); },
+  /* clear-screen rank sting, one voicing per letter — brightest/longest for S,
+     flattening down to a dull two-note drop for C */
+  rank(grade){
+    if (grade === "S"){
+      const n = [69, 73, 76, 81, 85, 88];
+      n.forEach((m, i) => tone(mtof(m), mtof(m) * 1.01, i === n.length - 1 ? 0.65 : 0.09, "square", 0.055, i * 0.05, { verb:0.55 }));
+      tone(mtof(93), mtof(93), 0.55, "sine", 0.045, 0.3, { verb:0.55 });
+    } else if (grade === "A"){
+      const n = [67, 71, 74, 79];
+      n.forEach((m, i) => tone(mtof(m), mtof(m), i === n.length - 1 ? 0.45 : 0.1, "square", 0.05, i * 0.07, { verb:0.4 }));
+    } else if (grade === "B"){
+      const n = [64, 67, 71];
+      n.forEach((m, i) => tone(mtof(m), mtof(m), i === n.length - 1 ? 0.35 : 0.11, "triangle", 0.05, i * 0.08, { verb:0.3 }));
+    } else {
+      tone(220, 160, 0.28, "sawtooth", 0.06); tone(146, 108, 0.3, "square", 0.045, 0.06);
+    }
+  }
 };
 function chargeLoopStart(){
   if (muted || !audio() || chargeOsc) return;
@@ -1180,7 +1216,7 @@ const CHIP_DEFS = [
 ];
 const MYSTERY_POS = { x:2965, y:296 };
 /* run-scoped collection state: survives deaths, resets on a fresh stage start */
-const runState = { shards:0, data:0, maxHpBonus:0, heartClaimed:false, chipsClaimed:{}, capsuleUsed:false };
+const runState = { shards:0, data:0, maxHpBonus:0, heartClaimed:false, chipsClaimed:{}, capsuleUsed:false, damageTaken:0 };
 let shutterOpen = false, switchPressed = false;
 /* ---------------- CHAPTER 1: FIRST SIGNAL — story state ----------------
    Sections teach in order (MMX intro-stage structure): each introduces a
@@ -1330,7 +1366,7 @@ function resetPlayer(x, y){
 function resetStage(full){
   if (full){
     runState.shards = 0; runState.data = 0; runState.maxHpBonus = 0; runState.heartClaimed = false;
-    runState.chipsClaimed = {}; runState.capsuleUsed = false;
+    runState.chipsClaimed = {}; runState.capsuleUsed = false; runState.damageTaken = 0;
     shutterOpen = false; switchPressed = false;
   }
   enemies = ENEMIES_DEF.map((d) => spawnEnemy(d));
@@ -1527,7 +1563,7 @@ function hurtPlayer(dmg, srcX, opts){
     SFX.chargeReady(); toast("SHIELD DOWN", 0.9);
     return;
   }
-  P.hp -= dmg; SFX.hurt(); onPlayerHurt(srcX, dmg);
+  P.hp -= dmg; runState.damageTaken += dmg; SFX.hurt(); onPlayerHurt(srcX, dmg);
   P.hurtT = 0.32; P.invulnT = 1.1; P.noCutT = 0;
   P.slideT = 0; P.h = 62; P.onLadder = false;   /* a hit breaks slide + ladder grip */
   P.hurtAir = !P.grounded;   /* pose split: tumbling air hurt vs ground hurt */
@@ -1544,7 +1580,7 @@ function startDeath(){
   shakeT = Math.max(shakeT, 0.32); freezeT = Math.max(freezeT, 0.12);
 }
 function pitFall(){
-  P.hp -= 4; SFX.hurt();
+  P.hp -= 4; runState.damageTaken += 4; SFX.hurt();
   spawnParticles(P.x, WORLD_H - 30, 10, ["#9a6bff", "#ff4d6d"], 140, 0.4, -100);
   if (P.hp <= 0){ P.hp = 0; startDeath(); return; }
   P.x = P.lastGround.x; P.y = P.lastGround.y; P.vx = 0; P.vy = 0;
@@ -4250,6 +4286,34 @@ function fmtTime(t){
   const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
   return mm + ":" + (ss < 10 ? "0" : "") + ss;
 }
+/* ---------------- MMX-style clear rank ----------------
+   Four 0-3 sub-scores (time / damage taken / shards / data chips) sum to a 0-12
+   total; S additionally demands a no-hit clear, same spirit as the classic X games
+   where any damage at all caps the rank below the top mark. */
+function computeRank(time, damage, shards, data){
+  let pts = 0;
+  pts += time <= 150 ? 3 : time <= 240 ? 2 : time <= 360 ? 1 : 0;
+  pts += damage === 0 ? 3 : damage <= 6 ? 2 : damage <= 14 ? 1 : 0;
+  pts += shards >= 20 ? 3 : shards >= 10 ? 2 : shards >= 4 ? 1 : 0;
+  pts += data >= 3 ? 3 : data >= 2 ? 2 : data >= 1 ? 1 : 0;
+  if (pts >= 11 && damage === 0) return "S";
+  if (pts >= 8) return "A";
+  if (pts >= 5) return "B";
+  return "C";
+}
+const RANK_ORDER = { S:4, A:3, B:2, C:1 };
+function betterRank(a, b){
+  if (!a) return b;
+  if (!b) return a;
+  return RANK_ORDER[a] >= RANK_ORDER[b] ? a : b;
+}
+let bestRank = null;
+try { const r = localStorage.getItem("sf_best_rank"); if (r && RANK_ORDER[r]) bestRank = r; } catch(e){}
+function saveBestRank(r){
+  bestRank = betterRank(bestRank, r);
+  try { localStorage.setItem("sf_best_rank", bestRank); } catch(e){}
+  return bestRank;
+}
 function syncPlayingClass(){
   document.body.classList.toggle("playing", mode === "playing" && !paused);
 }
@@ -4271,12 +4335,21 @@ function startGame(){
   pendingScene = { lines:SCENE_OPEN, onDone:null }; pendingSceneT = 1.15;
   syncPlayingClass();
 }
+let rankRevealTimer = null;
 function showClear(){
   mode = "clear";
   syncPlayingClass();
   document.getElementById("clearTime").textContent = fmtTime(stageTime);
   document.getElementById("clearShards").textContent = "◆ " + runState.shards;
   document.getElementById("clearData").textContent = runState.data + "/3";
+  document.getElementById("clearDamage").textContent = runState.damageTaken;
+  const grade = computeRank(stageTime, runState.damageTaken, runState.shards, runState.data);
+  saveBestRank(grade);
+  const rankEl = document.getElementById("rankLetter");
+  rankEl.textContent = grade;
+  rankEl.className = "rankletter " + grade.toLowerCase();   /* reset — "show" added below, after the reveal delay */
+  if (rankRevealTimer) clearTimeout(rankRevealTimer);
+  rankRevealTimer = setTimeout(() => { rankEl.classList.add("show"); SFX.rank(grade); rankRevealTimer = null; }, 550);
   const vc = document.getElementById("victoryCanvas");
   if (vc && IMG.sable){
     const vctx = vc.getContext("2d");
@@ -4313,6 +4386,10 @@ cv.addEventListener("pointerdown", () => { if (DLG.active && mode === "playing")
 resetStage(true);
 resetPlayer(90, 470);
 camSnap();
+if (bestRank){
+  document.getElementById("titleBestRankLetter").textContent = bestRank;
+  document.getElementById("titleBestRank").classList.remove("hidden");
+}
 loadAssets();
 let lastT = performance.now();
 /* presentation state that ticks every frame, even through hitstop */
