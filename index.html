@@ -1007,12 +1007,13 @@ function updateMusic(dt){
   if (mode === "playing" || mode === "paused"){
     const sec = sectionIndex();
     const brute = enemies.find((e) => e.type === "brute" && !e.dead && e.state !== "idle");
-    if (sec === 5 || bossTriggered){
+    if (sec === 10 || bossTriggered){
       if (B.state === "fight"){ want = "wraith"; intensity = B.phase2 ? 3 : 1; }
       else if (B.state === "dead" || B.state === "dying") want = null;
       else want = "drone";
     }
     else if (!STORY.beacon) want = "dark";
+    else if (sec === 9) want = "dark";   /* rain bridge: the storm pulls the theme back under */
     else if (brute && Math.abs(P.x - brute.x) < 700){ want = "yard"; intensity = 2; }
     else want = "relay";
   }
@@ -1140,74 +1141,161 @@ document.querySelectorAll(".tbtn").forEach((btn) => {
 });
 
 /* ---------------- stage data ---------------- */
-const WORLD_W = 9200, WORLD_H = 660;
+const WORLD_W = 26200, WORLD_H = 2640;
 /* solids: [x, y, w, h] — y is the TOP */
 const SOLIDS = [
-  [-40, 0, 40, 660], [6270, 0, 40, 660],
-  [0, 470, 1050, 190],                 /* A corridor floor */
-  [300, 390, 110, 16], [520, 338, 110, 16],   /* 300 sat 10px into head height and walled off the walk-in; raised 12px */
-  [1290, 470, 560, 190],               /* B floor */
-  [1850, 580, 420, 80],                /* shaft pit floor */
-  [1980, 150, 40, 300],                /* shaft left slab (gap below for entry) */
-  [2240, 150, 40, 430],                /* shaft right slab */
-  [2280, 150, 260, 24],                /* shaft exit platform */
-  [2150, 330, 90, 14],                 /* shaft heart ledge (bounce-pad route) */
-  [2620, 240, 150, 16], [2890, 330, 150, 16],
-  [3080, 440, 870, 220],               /* E drone-airspace floor */
-  [3380, 352, 110, 16],
-  [3950, 340, 120, 320],               /* climb block 1 (turret perch) */
-  [4130, 382, 130, 16],
-  [4540, 296, 140, 16],
-  [4980, 318, 140, 16],
-  [5160, 258, 90, 16],
-  [5290, 196, 130, 464],               /* climb block 2 (turret perch) */
-  [5480, 330, 130, 16],
-  [5560, 440, 740, 220],               /* G floor — boss gate antechamber */
-  /* --- SEPARATE BOSS ARENA (x 7000–9000, floor 620: taller room, free-scroll camera) --- */
-  [7000, 620, 2000, 200],              /* ARENA floor */
-  [6960, -100, 40, 920],               /* ARENA west wall */
-  [9000, -100, 40, 920],               /* ARENA east wall */
-  [7260, 468, 150, 16], [7925, 372, 150, 16], [8590, 468, 150, 16]  /* ARENA platforms */
+  [-40, -200, 40, 2900],              /* west world cap */
+  /* --- SUNSET ROOFTOPS (surface band, floor 470) --- */
+  [0, 470, 820, 190],                 /* F1 spawn roof */
+  [320, 390, 100, 16], [520, 352, 100, 16],   /* hop platforms (390 = old build's head clearance) */
+  [1150, 470, 850, 190],              /* F2 (dash gap 820-1150 before it) */
+  [1380, 450, 110, 20], [1490, 430, 110, 40], [1600, 410, 110, 60], [1710, 430, 110, 40], [1820, 450, 110, 20], /* step-up teach stairs (20px rises) */
+  /* --- ROOFTOP GANTRY --- */
+  [2000, 470, 1000, 190],             /* F3 */
+  [2350, 352, 120, 16], [2620, 300, 120, 16],   /* gantry platforms */
+  [3030, 262, 140, 16],               /* lift-top shard platform */
+  [3000, 470, 1000, 190],             /* F4 */
+  /* --- RUINED STAIRWELL (straight twin flight, tread 46 / rise 20) --- */
+  [4000, 470, 300, 190],              /* entry floor */
+  [4000, 150, 3000, 50],              /* ceiling over stairwell + shaft */
+  [4300, 490, 46, 20],
+  [4346, 510, 46, 20],
+  [4392, 530, 46, 20],
+  [4438, 550, 46, 20],
+  [4484, 570, 46, 20],
+  [4530, 590, 46, 20],
+  [4576, 610, 46, 20],
+  [4622, 630, 46, 20],
+  [4668, 650, 46, 20],
+  [4714, 670, 46, 20],
+  [4760, 690, 46, 20],
+  [4806, 710, 46, 20],
+  [4852, 730, 46, 20],
+  [4898, 750, 46, 20],
+  [4944, 770, 46, 20],
+  [4990, 790, 46, 20],
+  [5036, 810, 46, 20],
+  [5082, 810, 258, 20],               /* landing A (crawler) */
+  [5340, 830, 46, 20],
+  [5386, 850, 46, 20],
+  [5432, 870, 46, 20],
+  [5478, 890, 46, 20],
+  [5524, 910, 46, 20],
+  [5570, 930, 46, 20],
+  [5616, 950, 46, 20],
+  [5754, 1010, 46, 20],
+  [5800, 1030, 46, 20],
+  [5846, 1050, 46, 20],
+  [5892, 1070, 46, 20],
+  [5938, 1090, 46, 20],
+  [5984, 1110, 46, 20],
+  [6030, 1130, 46, 20],
+  [5560, 950, 40, 400],               /* stairwell pit west wall */
+  [5600, 1290, 220, 60],              /* stairwell pit floor (bounce pad) */
+  [5760, 1130, 90, 16],               /* pit recovery ledge */
+  [5820, 1010, 40, 340],              /* pit east wall */
+  [6076, 1130, 324, 190],             /* mid landing / shaft mouth */
+  [6180, 950, 44, 16], [6256, 950, 74, 16],   /* shaft chip ledge (ladder 1) — split: the ladder climbs through the gap */
+  /* --- MINE SHAFT (ledge drops) --- */
+  [6940, 1130, 60, 630],              /* shaft east wall */
+  [6520, 1300, 170, 16],              /* drop ledge L1 */
+  [6230, 1460, 170, 16],              /* drop ledge L2 */
+  [6550, 1610, 170, 16],              /* drop ledge L3 */
+  [6100, 1760, 900, 240],             /* deep floor D1 */
+  /* --- CONVEYOR WORKS (deep band, floor 1760) --- */
+  [7000, 1760, 1900, 240],            /* W1 */
+  [8900, 1920, 260, 80],              /* crumble pit floor */
+  [9080, 1860, 80, 16],               /* crumble pit exit step */
+  [9160, 1760, 440, 240],             /* W2 (spikes + crusher) */
+  [8200, 1660, 100, 16],              /* deck step */
+  [8380, 1560, 420, 16],              /* mortar / shutter deck */
+  /* --- FLOODED PUMPS --- */
+  [9600, 1760, 1300, 240],            /* P1 dry approach */
+  [10900, 1830, 1500, 220],           /* P2 pool channel floor */
+  [11800, 1810, 80, 20], [11880, 1790, 80, 40], [11960, 1770, 80, 60], /* channel exit steps (20px rises) */
+  [12040, 1760, 360, 16],             /* bridge over channel east end */
+  [12400, 1760, 500, 240],            /* P3a */
+  [12400, 2100, 1500, 180],           /* under-passage floor (secret) */
+  [13436, 2100, 1164, 200],           /* CRYSTAL VAULT floor */
+  [14600, 1900, 40, 400],             /* vault east wall */
+  /* --- SHIELD CORRIDOR --- */
+  [13100, 1760, 2000, 240],           /* corridor floor (also passage/vault ceiling) */
+  /* --- FOREMAN ARENA (locked room, floor 1760) --- */
+  [15100, 1760, 1000, 240],           /* arena floor */
+  [15060, 1100, 40, 560],             /* west wall (floor gap closed by the seal) */
+  [16100, 1100, 40, 560],             /* east wall (floor gap = exit) */
+  [15100, 1180, 1000, 40],            /* ceiling */
+  /* --- THE CLIMB OUT --- */
+  [16100, 1760, 1300, 240],           /* climb bottom floor */
+  [16280, 1130, 204, 18], [16516, 1130, 664, 18],   /* climb-out mid landing — split for ladder 3; east piece runs under the chimney shaft */
+  [16900, 430, 50, 470],              /* chimney west wall, upper piece (430-900) */
+  [16950, 1060, 230, 70],             /* chimney shaft floor — hop in from the landing; both wall faces work from here */
+  [17180, 430, 50, 300],              /* chimney east wall, upper */
+  [17180, 830, 50, 300],              /* chimney east wall, lower (gap 730-830 = capsule pocket mouth) */
+  [17230, 430, 190, 130],             /* capsule pocket roof */
+  [17420, 560, 40, 460],              /* capsule pocket back wall */
+  [17230, 830, 190, 16],              /* capsule pocket floor */
+  [16840, 430, 110, 18], [17180, 430, 120, 18],   /* chimney exit caps — the shaft mouth stays OPEN (a full-width platform bonked every top-out wall jump at feet=510) */
+  /* --- RAIN BRIDGE + BOSS GATE (surface band, inbound) --- */
+  [17300, 470, 1300, 190],            /* S1 inbound roof */
+  [18950, 470, 1850, 190],            /* S2 bridge deck (dash gap 18600-18950) */
+  [20800, 470, 940, 190],             /* S3 gate floor */
+  [21740, -60, 40, 720],              /* gate east cap */
+  /* --- WRAITH CHAMBER (separate arena, floor 620) --- */
+  [24000, 620, 2000, 200],            /* ARENA floor */
+  [23960, -100, 40, 920],             /* ARENA west wall */
+  [26000, -100, 40, 920],             /* ARENA east wall */
+  [24260, 468, 150, 16], [24925, 372, 150, 16], [25590, 468, 150, 16]  /* ARENA platforms */
 ];
 const SPIKES = [
-  [600, 454, 52, 16], [1420, 454, 72, 16], [3480, 424, 72, 16]
+  [9280, 1744, 90, 16],                 /* conveyor W2, between pit exit and crusher */
+  [17060, 1744, 120, 16]                /* climb-out bottom floor, guarding the big cell */
 ];
 const MOVERS = [
-  { x:4320, y:360, w:110, h:16, axis:"y", min:296, max:428, speed:62, t:0.3, dx:0, dy:0, isMover:true },
-  { x:4760, y:248, w:110, h:16, axis:"x", min:4700, max:4920, speed:74, t:0.0, dx:0, dy:0, isMover:true }
+  { x:3080, y:452, w:92, h:14, axis:"y", min:280, max:452, speed:55, t:0.0, dx:0, dy:0, isMover:true },   /* gantry lift to the shard platform */
+  { x:6760, y:1700, w:90, h:14, axis:"y", min:1250, max:1700, speed:55, t:0.5, dx:0, dy:0, isMover:true }  /* shaft lift (alternate ascent) */
 ];
 const CHECKPOINTS = [
-  { x:980, floorY:470, active:false },
-  { x:5660, floorY:440, active:false }
+  { x:2900, floorY:470, active:false },   /* CP1: the relay beacon, rooftop gantry */
+  { x:13350, floorY:1760, active:false }  /* CP2: shield corridor entrance (in the pit-jump landing zone — at 13200 a clean dash-jump sailed over its band) */
 ];
 const PICKUPS_DEF = [
-  { x:575, y:306, big:false }, { x:2680, y:208, big:false }, { x:3435, y:320, big:false },
-  { x:5030, y:286, big:false }, { x:1200, y:336, big:true }, { x:4760, y:210, big:true },
-  { x:5620, y:402, big:true }
+  { x:570, y:318, big:false },          /* rooftops hop platform */
+  { x:2410, y:318, big:false },         /* gantry platform 1 */
+  { x:2680, y:266, big:false },         /* gantry platform 2 */
+  { x:5710, y:1256, big:false },        /* stairwell pit (pad teach reward) */
+  { x:8760, y:1526, big:false },        /* conveyor deck, behind the shutter */
+  { x:9860, y:1726, big:false },        /* pumps dry approach */
+  { x:11300, y:1796, big:false },       /* pumps channel */
+  { x:15300, y:1726, big:false },       /* foreman arena, west corner */
+  { x:17320, y:1726, big:true },        /* climb-out bottom, behind the spikes */
+  { x:19800, y:436, big:false }         /* rain bridge deck */
 ];
 const ENEMIES_DEF = [
-  { type:"walker", x:720, min:620, max:900 },
-  { type:"walker", x:1620, min:1500, max:1780 },
-  { type:"walker", x:3720, min:3600, max:3900 },
-  { type:"drone", x:3250, y:300 }, { type:"drone", x:3560, y:262 }, { type:"drone", x:3860, y:312 },
-  { type:"turret", x:4012, baseY:340 }, { type:"turret", x:5352, baseY:196 },
-  /* --- MEGA EXPANSION roster, placed into the existing sections --- */
-  { type:"jumper", x:330 },                                  /* opening corridor hops */
-  { type:"crawler", x:575, y:338, min:528, max:622 },         /* corridor platform */
-  { type:"ceilturret", x:1500, y:148 },                       /* maintenance corridor ceiling gun (debuts solo) */
-  { type:"jumper", x:1470 },                                 /* lower corridor */
-  { type:"mine", x:2090, y:392 }, { type:"mine", x:2185, y:262 },  /* shaft drift mines */
-  { type:"swooper", x:3180, y:176 }, { type:"swooper", x:3760, y:148 }, /* drone airspace roosts */
-  { type:"shieldwalker", x:3560, min:3470, max:3660 },        /* FOREMAN'S YARD gate guard — the Aegis beat */
-  { type:"brute", x:3380 },                                  /* FOREMAN-9, yard overseer mini-boss */
-  { type:"swooper", x:4250, y:190 },                          /* core approach: joins the climb combos */
-  { type:"crawler", x:5545, y:330, min:5490, max:5602 },      /* climb platform */
-  { type:"mortar", x:4605, baseY:296 },                       /* climb mortar */
-  { type:"shieldwalker", x:5690, min:5600, max:5750 },        /* pre-boss corridor guard */
-  { type:"ceilturret", x:7260, y:170 }                        /* arena entrance gun */
+  { type:"crawler", x:2450, min:2260, max:2750 },              /* gantry: first crawler, alone */
+  { type:"drone", x:3400, y:320 },                             /* gantry air */
+  { type:"crawler", x:3650, min:3480, max:3900 },              /* gantry east */
+  { type:"ceilturret", x:4550, y:230 },                        /* stairwell: ceiling gun, solo intro */
+  { type:"crawler", x:5210, y:810, min:5120, max:5300 },       /* stairwell landing A */
+  { type:"mine", x:6680, y:1210 }, { type:"mine", x:6260, y:1360 },
+  { type:"mine", x:6700, y:1530 }, { type:"mine", x:6320, y:1690 },   /* shaft: sparse -> denser */
+  { type:"jumper", x:7600 },                                   /* conveyor: hops belt 1 */
+  { type:"mortar", x:8650, baseY:1560 },                       /* conveyor deck */
+  { type:"diver", x:11350, y:1800, min:11020, max:11680 },     /* pumps: diver 1 (teach) */
+  { type:"diver", x:11700, y:1800, min:11400, max:12100 },     /* pumps: diver 2 */
+  { type:"diver", x:12000, y:1800, min:11720, max:12360 },     /* pumps: diver 3 */
+  { type:"shieldwalker", x:14050, y:1760, min:13850, max:14350, beat:true },  /* corridor: the Aegis beat */
+  { type:"shieldwalker", x:14650, y:1760, min:14480, max:14900 },      /* corridor: second shield */
+  { type:"crawler", x:14800, min:14550, max:14980 },           /* corridor: shield + crawler combo */
+  { type:"brute", x:15700, min:15200, max:15900 },             /* FOREMAN-9 */
+  { type:"mine", x:16380, y:1450 },                            /* climb out: beside ladder 3 */
+  { type:"swooper", x:16650, y:780 },                          /* climb out air */
+  { type:"walker", x:18000, min:17600, max:18400 },            /* inbound roof patrol */
+  { type:"swooper", x:19650, y:290 }, { type:"swooper", x:20250, y:265 }, { type:"swooper", x:20680, y:315 },  /* rain bridge x3 */
+  { type:"ceilturret", x:24260, y:170 }                        /* wraith chamber entrance gun */
 ];
-const GATE_X = 5740, BOSS_TRIGGER_X = 5760;
-const ARENA_X0 = 7000, ARENA_X1 = 9000, ARENA_ENTER_X = 7160;
+const GATE_X = 21450, BOSS_TRIGGER_X = 21560;
+const ARENA_X0 = 24000, ARENA_X1 = 26000, ARENA_ENTER_X = 24160;
 /* ---------------- per-section visual identity ----------------
    One bucket per SECTIONS entry, keyed off world x. Shared by drawPlatform()
    (seam/under-glow/gradient) and drawBackground() (gradient/motes/wisps), so a
@@ -1215,55 +1303,118 @@ const ARENA_X0 = 7000, ARENA_X1 = 9000, ARENA_ENTER_X = 7160;
    color stays inside the game's cyan/violet family — warmth/coolness and
    saturation shift, hue never strays into the hazard-strip gold/black or the
    HP-danger red reserved elsewhere. */
-function sectionAtX(cx){
-  if (cx >= ARENA_X0) return "arena";
-  if (cx >= 3950) return "approach";
-  if (cx >= 2620) return "yard";
-  if (cx >= 1850) return "shaft";
-  if (cx >= 1050) return "corridor";
-  return "bay";
+/* multi-band world: sections are REGION BOXES, not x-thresholds.
+   sectionIndexAt(x, y) is the single source of truth — sectionIndex()
+   (player) and sectionAt() (render buckets) both derive from it. */
+function sectionIndexAt(x, y){
+  if (x >= 22960) return 10;                                  /* wraith arena */
+  if (y > 1980 && x >= 12400 && x < 15000) return 5;          /* under-passage + crystal vault */
+  if (x >= 20800 && y < 700) return 10;                       /* boss gate corridor */
+  if (x >= 17300 && y < 700) return 9;                        /* rain bridge */
+  if (x >= 16100 && x < 17300) return 8;                      /* the climb out (whole column) */
+  if (x >= 15100 && x < 16100 && y > 1000) return 7;          /* foreman arena */
+  if (x >= 13100 && x < 15100 && y > 1000) return 6;          /* shield corridor */
+  if (x >= 9600 && x < 13100 && y > 1000) return 5;           /* flooded pumps */
+  if (x >= 7000 && x < 9600 && y > 1000) return 4;            /* conveyor works */
+  if (x >= 6100 && y >= 660) return 3;                        /* mine shaft chamber */
+  if (x >= 4000 && y >= 660) return 2;                        /* ruined stairwell (lower) */
+  if (x >= 4000 && y < 660) return 2;                         /* ruined stairwell (entry/flights) */
+  if (x >= 2000 && y < 660) return 1;                         /* rooftop gantry */
+  if (y < 660) return 0;                                      /* sunset rooftops */
+  return 0;
+}
+const SECTION_KEYS = ["rooftops", "gantry", "stairwell", "shaft", "conveyor", "pumps", "corridor", "foreman", "climb", "bridge", "arena"];
+function sectionAt(x, y){
+  return SECTION_KEYS[sectionIndexAt(x, y)];
 }
 const SECTION_STYLE = {
-  /* AWAKENING BAY — pale, half-lit cyan-teal: still waking up */
-  bay:      { pTop:"#1b2550", pMid:"#131c3e", seam:"#6fe0e0", under:"150,220,220",
-              bg0:"#05081c", bg1:"#0a1030", bg2:"#070a1c", mote:"120,210,220", wisp:"90,210,220" },
-  /* MAINTENANCE CORRIDOR — warm and dim */
-  corridor: { pTop:"#2a2140", pMid:"#1d1730", seam:"#ffb870", under:"255,170,90",
-              bg0:"#160f20", bg1:"#241832", bg2:"#120b1c", mote:"255,190,130", wisp:"255,170,100" },
-  /* THE SHAFT — cold and vertical */
-  shaft:    { pTop:"#171b38", pMid:"#10142c", seam:"#9a7bff", under:"154,107,255",
-              bg0:"#07081e", bg1:"#0c0a2c", bg2:"#05051a", wisp:"170,140,255", mote:"170,150,255" },
-  /* FOREMAN'S YARD — industrial amber, harsher shadow */
-  yard:     { pTop:"#302313", pMid:"#201604", seam:"#ffaa3c", under:"255,150,40",
-              bg0:"#180f07", bg1:"#241404", bg2:"#150b05", mote:"255,175,90", wisp:"255,150,70" },
-  /* RELAY CORE APPROACH — bright cyan */
-  approach: { pTop:"#1e2962", pMid:"#141c42", seam:"#35e0ff", under:"53,224,255",
-              bg0:"#051527", bg1:"#0a223f", bg2:"#061427", mote:"100,235,255", wisp:"80,225,255" },
-  /* WRAITH CHAMBER — deep violet arena */
-  arena:    { pTop:"#241238", pMid:"#170a26", seam:"#c08bff", under:"154,80,255",
-              bg0:"#0e0620", bg1:"#180a30", bg2:"#0a0418", mote:"190,140,255", wisp:"170,110,255" }
+  rooftops:      { pTop:"#3a2c5e", pMid:"#241a44", seam:"#ff9a5c", under:"255,150,90", bg0:"#171233", bg1:"#2c1f4e", bg2:"#100b28", mote:"255,180,130", wisp:"255,160,110" },
+  gantry:      { pTop:"#2c2450", pMid:"#1c173c", seam:"#35e0ff", under:"53,224,255", bg0:"#0d0f2c", bg1:"#181a44", bg2:"#0a0c22", mote:"140,220,255", wisp:"110,200,255" },
+  stairwell:      { pTop:"#252c52", pMid:"#171d38", seam:"#ffb870", under:"255,170,90", bg0:"#0c0e24", bg1:"#161a36", bg2:"#090b1c", mote:"255,200,150", wisp:"255,180,110" },
+  shaft:      { pTop:"#1d2447", pMid:"#12172f", seam:"#9a7bff", under:"154,107,255", bg0:"#080a1e", bg1:"#100e2e", bg2:"#06071a", mote:"170,150,255", wisp:"150,130,255" },
+  conveyor:      { pTop:"#3a2c1c", pMid:"#241a10", seam:"#ffaa3c", under:"255,150,40", bg0:"#140d06", bg1:"#221606", bg2:"#0f0903", mote:"255,190,110", wisp:"255,160,80" },
+  pumps:      { pTop:"#173a44", pMid:"#0f2830", seam:"#4ae3b5", under:"74,227,181", bg0:"#061418", bg1:"#0a222a", bg2:"#050f12", mote:"140,240,210", wisp:"110,220,190" },
+  corridor:      { pTop:"#26355e", pMid:"#182242", seam:"#35e0ff", under:"53,224,255", bg0:"#0a1026", bg1:"#131c3e", bg2:"#070c1c", mote:"140,225,255", wisp:"110,205,255" },
+  foreman:      { pTop:"#40241c", pMid:"#2a1710", seam:"#ff8a5c", under:"255,120,70", bg0:"#180b06", bg1:"#281208", bg2:"#120704", mote:"255,170,110", wisp:"255,140,80" },
+  climb:      { pTop:"#27392c", pMid:"#18251c", seam:"#7de8a8", under:"125,232,168", bg0:"#0a140d", bg1:"#12241a", bg2:"#081008", mote:"160,240,180", wisp:"130,220,160" },
+  bridge:      { pTop:"#24304f", pMid:"#161f36", seam:"#7db8ff", under:"125,184,255", bg0:"#0a1122", bg1:"#14203c", bg2:"#080e1a", mote:"170,205,255", wisp:"140,180,255" },
+  arena:      { pTop:"#241238", pMid:"#170a26", seam:"#c08bff", under:"154,80,255", bg0:"#0e0620", bg1:"#180a30", bg2:"#0a0418", mote:"190,140,255", wisp:"170,110,255" }
 };
-const BOSS_SPAWN_X = 8400, ARENA_FLOOR = 620;
+const BOSS_SPAWN_X = 25400, ARENA_FLOOR = 620;
 /* --- MEGA EXPANSION mechanics (visual sprites live in MECH_FRAMES) --- */
-const LADDER = { x:2036, top:150, bottom:566 };            /* shaft left wall, hugs the slab's inner face */
-const BOUNCE_PAD = { x:2130, y:580 };                      /* shaft pit -> heart ledge */
-const LASER = { x:880, floorY:470 };                       /* corridor gate, 2s cycle */
-const CONVEYOR = { x0:1500, x1:1720, floorY:470, dir:-1, speed:85 }; /* pushes toward the 1420 spike strip */
-const SHUTTER = { x:1720, y:320, w:44, h:150 };            /* door on the lower corridor floor */
-const PSWITCH = { x:1600, floorY:470 };                    /* pressure switch for the shutter */
-const CAPSULE = { x:5600, floorY:440 };                    /* armor capsule before the boss gate */
-const SPIKEBALLS = [ { x:3300, y:238 }, { x:3700, y:196 } ];
-const SAW = { x:4082, y0:208, y1:316, t:0 };               /* climb-wall saw track */
-const ICE_DEFS = [ [4270, 326, 110, 14], [4405, 298, 110, 14] ];  /* climb ice slabs */
-const HEART_POS = { x:2195, y:300 };
-const CHIP_DEFS = [
-  { id:"boots", spr:"chipboots", x:1800, y:428 },          /* behind the shutter */
-  { id:"blade", spr:"chipblade", x:5205, y:224 },          /* high climb platform */
-  { id:"pendant", spr:"chippendant", x:3435, y:318 }       /* drone-airspace platform */
+/* ---------------- GRAYBOX flag ----------------
+   true = the Chapter 1 fidelity rebuild renders as flat section-tinted
+   placeholder blocks (geometry/pacing pass). The dressed sprite path
+   stays intact behind the flag for the art phase. */
+const GRAYBOX = true;
+const GB_TINTS = ["#6b4a8f", "#54498c", "#3f4a75", "#2e3a5f", "#6e5636", "#2a5f6e", "#4a5f8f", "#7a4436", "#4f6e52", "#3a5a8f", "#5f2a4a"];   /* by section index */
+/* ladders are a LIST now (the p10 ladder-shoot system keys off
+   P.onLadder + P.ladderRef): exitX is where he steps off at the top */
+const LADDERS = [
+  { x:6240, top:950, bottom:1130, exitX:6260 },     /* shaft: up to the pendant chip ledge */
+  { x:13040, top:1760, bottom:2100, exitX:13160 },  /* secret passage -> shield corridor */
+  { x:16500, top:1130, bottom:1760, exitX:16430 }   /* climb out: deep floor -> mid landing */
 ];
-const MYSTERY_POS = { x:2965, y:296 };
+const PADS = [
+  { x:5710, y:1290 }                                /* stairwell pit bounce pad (A6) */
+];
+const LASER = { x:13520, floorY:1760 };             /* shield corridor gate, 2s cycle */
+const CONVEYORS = [
+  { x0:7300, x1:7900, floorY:1760, dir:1, speed:85 },   /* belt 1: carries him east */
+  { x0:8150, x1:8750, floorY:1760, dir:-1, speed:85 }   /* belt 2: fights him west */
+];
+const SHUTTER = { x:8480, y:1400, w:44, h:160 };    /* conveyor deck door */
+const PSWITCH = { x:8420, floorY:1560 };            /* pressure switch for the shutter */
+const CAPSULE = { x:17320, floorY:830 };            /* armor capsule, climb-out pocket (wall-jump) */
+const SPIKEBALLS = [];
+const SAW = { x:-600, y0:0, y1:0, t:0 };            /* retired off-world (system kept) */
+const ICE_DEFS = [];
+const HEART_POS = { x:14200, y:2070 };              /* Signal Heart, inside the crystal vault */
+const CHIP_DEFS = [
+  { id:"boots", spr:"chipboots", x:985, y:305 },      /* rooftops dash-gap line */
+  { id:"pendant", spr:"chippendant", x:6260, y:920 }, /* shaft ladder ledge */
+  { id:"blade", spr:"chipblade", x:17065, y:392 }     /* climb-out chimney top */
+];
+const MYSTERY_POS = { x:12550, y:2070 };            /* under-passage west dead-end */
+/* placed shard pickups (enemy drops are separate, transient) */
+const SHARD_DEFS = [
+  { x:880, y:365 }, { x:940, y:318 }, { x:1000, y:305 }, { x:1060, y:335 }, { x:1120, y:390 },   /* rooftops dash arc */
+  { x:3060, y:232 }, { x:3120, y:232 },                                                          /* gantry lift platform */
+  { x:16480, y:1420 },                                                                           /* climb ladder line */
+  { x:17065, y:1010 }, { x:17065, y:760 },                                                       /* chimney wall-jump line */
+  { x:18660, y:365 }, { x:18720, y:318 }, { x:18780, y:305 }, { x:18840, y:335 }, { x:18900, y:390 }  /* bridge dash arc */
+];
+/* A3 WADE: feet inside a zone = wading (slow + splash); the pool floor
+   is an ordinary solid — water is never a pit */
+const WATER_ZONES = [
+  { x:10890, y:1800, w:1520, h:56 }                 /* flooded pumps channel (surface 1800) */
+];
+/* A5 BREAKABLE WALL: the crystal vault's cracked door (pumps under-passage) */
+const BREAKABLE = { x:13400, y:1990, w:36, h:130, broken:false };
+/* A2 CRUSHER: idle -> WARNING (>=0.5s, light + dust + warn cue) -> slam
+   (heavy damage + knockback, NEVER a pit kill) -> hold -> retract */
+const CRUSHER = { x:9450, w:96, floorY:1760, restBottom:1600, headH:64, state:"idle", t:0, bottom:1600 };
+/* boss gate: TWO proximity shutters with a corridor between (gate scene) */
+const GATE_DOORS = [
+  { x:21100, top:270, w:40, h:200, open:0, locked:false },
+  { x:21450, top:270, w:40, h:200, open:0, locked:false }
+];
+/* foreman arena seal: slams behind him when he commits to the room */
+const FOREMAN_SEAL = { x:15108, y:1220, w:12, h:540 };
+let foremanSealed = false, foremanDone = false;
+/* crumble platforms over the conveyor pit */
+const CRUMBLE_DEFS = [
+  { x:8910, y:1756, w:104, h:14 },
+  { x:9050, y:1756, w:104, h:14 }
+];
+/* rain: visual + ambience only, NO wind. amt = streak density/gain */
+const RAIN_ZONES = [
+  { x0:16600, x1:17600, y0:-100, y1:700, amt:0.35 },  /* gathering at the top of the climb out */
+  { x0:17600, x1:21900, y0:-100, y1:700, amt:1 }      /* rain bridge + boss gate */
+];
+let rainLevel = 0;
 /* run-scoped collection state: survives deaths, resets on a fresh stage start */
-const runState = { shards:0, data:0, maxHpBonus:0, heartClaimed:false, chipsClaimed:{}, capsuleUsed:false };
+const runState = { shards:0, data:0, maxHpBonus:0, heartClaimed:false, chipsClaimed:{}, capsuleUsed:false, shardsClaimed:{} };
 let shutterOpen = false, switchPressed = false;
 /* ---------------- CHAPTER 1: FIRST SIGNAL — story state ----------------
    Sections teach in order (MMX intro-stage structure): each introduces a
@@ -1271,11 +1422,16 @@ let shutterOpen = false, switchPressed = false;
    Core falsified its logs, Sable is a Rewritten (modified human), the
    Successor is only ever hinted — never named. */
 const SECTIONS = [
-  { name:"AWAKENING BAY", obj:"REACH THE RELAY BEACON" },
-  { name:"MAINTENANCE CORRIDOR", obj:"RESTORE THE BEACON" },
-  { name:"THE SHAFT", obj:"CLIMB TO THE UPPER GANTRY" },
-  { name:"FOREMAN'S YARD", obj:"DEFEAT FOREMAN-9 · RECOVER THE POWER CELL" },
-  { name:"RELAY CORE APPROACH", obj:"REACH THE CORE GATE" },
+  { name:"SUNSET ROOFTOPS", obj:"CROSS THE ROOFTOPS — DASH THE GAP" },
+  { name:"ROOFTOP GANTRY", obj:"RELIGHT THE RELAY BEACON" },
+  { name:"RUINED STAIRWELL", obj:"DESCEND TO THE MINE SHAFT" },
+  { name:"MINE SHAFT", obj:"RIDE THE DARK DOWN" },
+  { name:"CONVEYOR WORKS", obj:"CROSS THE WORKS — MIND THE CRUSHER" },
+  { name:"FLOODED PUMPS", obj:"WADE THE PUMP HALL" },
+  { name:"SHIELD CORRIDOR", obj:"BREAK THE SHIELD LINE" },
+  { name:"FOREMAN ARENA", obj:"FOREMAN-9 — BRING IT DOWN" },
+  { name:"THE CLIMB OUT", obj:"CLIMB — CLAIM THE ARMOR CAPSULE" },
+  { name:"RAIN BRIDGE", obj:"CROSS THE BRIDGE IN THE STORM" },
   { name:"WRAITH CHAMBER", obj:"DESTROY THE STATIC WRAITH" }
 ];
 let objective = SECTIONS[0].obj;
@@ -1284,12 +1440,7 @@ const STORY = {
   relay:false, aegis:false, capsule:false, wraithPost:false, echoStable:false
 };
 function sectionIndex(){
-  if (P.x >= 6900) return 5;
-  if (P.x >= 3950) return 4;
-  if (P.x >= 2620) return 3;
-  if (P.x >= 1850) return 2;
-  if (P.x >= 1050) return 1;
-  return 0;
+  return sectionIndexAt(P.x, P.y);
 }
 let crumbles = [], wrecks = [], waves = [], sparts = [];
 /* set dressing — visual only, no collision. y = bottom (sits on a floor/platform top).
@@ -1439,6 +1590,7 @@ const DECOR_ARENA = [
 const DECOR = [
   ...DECOR_BAY, ...DECOR_CORRIDOR, ...DECOR_SHAFT, ...DECOR_YARD, ...DECOR_APPROACH, ...DECOR_ARENA
 ];
+if (GRAYBOX) DECOR.length = 0;   /* graybox: no set dressing — flat blocks only */
 
 /* ---------------- game state ---------------- */
 let mode = "title";           /* title | playing | paused | clear */
@@ -1467,7 +1619,7 @@ function resetPlayer(x, y){
   P.readyStanceT = 0; P.spinUsed = false; P.diveActive = false; P.beamHeld = false;
   /* MEGA EXPANSION state */
   P.maxHp = 16 + runState.maxHpBonus; P.hp = P.maxHp; P.hpGhost = P.hp;
-  P.h = 62; P.slideT = 0; P.slideDir = 1; P.onLadder = false; P.climbDist = 0;
+  P.h = 62; P.slideT = 0; P.slideDir = 1; P.onLadder = false; P.ladderRef = null; P.wading = false; P.climbDist = 0;
   P.idleT = 0; P.poseFx = null; P.poseFxT = 0; P.wallAwayT = 0; P.wallChain = 0;
   P.skidding = false; P.shield = false; P.standingOn = null; P.onIce = false; P.bounceCd = 0;
   /* FLUIDITY transition accents (visual only — never gate the action) */
@@ -1477,21 +1629,23 @@ function resetPlayer(x, y){
 function resetStage(full){
   if (full){
     runState.shards = 0; runState.data = 0; runState.maxHpBonus = 0; runState.heartClaimed = false;
-    runState.chipsClaimed = {}; runState.capsuleUsed = false;
+    runState.chipsClaimed = {}; runState.capsuleUsed = false; runState.shardsClaimed = {};
     shutterOpen = false; switchPressed = false;
+    BREAKABLE.broken = false; foremanDone = false;
   }
   enemies = ENEMIES_DEF.map((d) => spawnEnemy(d));
   pickups = PICKUPS_DEF.map((d) => ({ x:d.x, y:d.y, big:d.big, kind:"cell", taken:false, ph:Math.random() * 6 }));
+  SHARD_DEFS.forEach((s, i) => { if (!runState.shardsClaimed[i]) pickups.push({ x:s.x, y:s.y, kind:"shard", shardIdx:i, taken:false, ph:Math.random() * 6 }); });
   if (!runState.heartClaimed) pickups.push({ x:HEART_POS.x, y:HEART_POS.y, kind:"heart", taken:false, ph:1 });
   for (const c of CHIP_DEFS) if (!runState.chipsClaimed[c.id]) pickups.push({ x:c.x, y:c.y, kind:"chip", spr:c.spr, chipId:c.id, taken:false, ph:2 });
   pickups.push({ x:MYSTERY_POS.x, y:MYSTERY_POS.y, kind:"mystery", taken:false, ph:3 });
   pBolts = []; eBolts = []; particles = []; ghosts = []; booms = []; arcs = [];
+  foremanSealed = false;
+  CRUSHER.state = "idle"; CRUSHER.t = 0; CRUSHER.bottom = CRUSHER.restBottom;
+  for (const d of GATE_DOORS){ d.open = 0; d.locked = false; }
   swordFx = []; freezeT = 0; shakeT = 0;
   sparts = []; waves = []; wrecks = [];
-  crumbles = [
-    { x:4270, y:368, w:104, h:14, state:"idle", t:0, crumble:true },
-    { x:4430, y:340, w:104, h:14, state:"idle", t:0, crumble:true }
-  ];
+  crumbles = CRUMBLE_DEFS.map((c) => ({ x:c.x, y:c.y, w:c.w, h:c.h, state:"idle", t:0, crumble:true }));
   sealActive = false; bossTriggered = false; warningT = 0;
   transT = 0; transMid = false;
   resetBoss();
@@ -1509,12 +1663,13 @@ function spawnEnemy(d){
   if (d.type === "drone") return { type:"drone", x:d.x, y:d.y, baseY:d.y, hp:2, maxHp:2, ph:Math.random() * 6, flashT:0, dead:false };
   if (d.type === "crawler") return { type:"crawler", x:d.x, y:(d.y != null ? d.y : (groundYAt(d.x) || 470)), min:d.min, max:d.max, dir:1, hp:2, maxHp:2, walkPh:0, flashT:0, dead:false };
   if (d.type === "swooper") return { type:"swooper", x:d.x, y:d.y, homeX:d.x, homeY:d.y, hp:2, maxHp:2, state:"roost", vx:0, vy:0, t:0, flashT:0, dead:false };
-  if (d.type === "shieldwalker") return { type:"shieldwalker", x:d.x, y:groundYAt(d.x) || 440, min:d.min, max:d.max, face:-1, hp:6, maxHp:6, walkPh:0, blockFxT:0, turnT:0, flashT:0, dead:false };
+  if (d.type === "shieldwalker") return { type:"shieldwalker", x:d.x, y:(d.y != null ? d.y : (groundYAt(d.x) || 440)), min:d.min, max:d.max, face:-1, hp:6, maxHp:6, walkPh:0, blockFxT:0, turnT:0, flashT:0, dead:false, beat:!!d.beat };
   if (d.type === "ceilturret") return { type:"ceilturret", x:d.x, y:d.y, hp:4, maxHp:4, t:1.6 + Math.random(), told:false, flashT:0, dead:false };
   if (d.type === "mortar") return { type:"mortar", x:d.x, baseY:d.baseY, hp:4, maxHp:4, t:2 + Math.random(), flashT:0, dead:false };
   if (d.type === "mine") return { type:"mine", x:d.x, y:d.y, baseX:d.x, baseY:d.y, hp:2, maxHp:2, ph:Math.random() * 6, fuse:-1, flashT:0, dead:false };
   if (d.type === "jumper") return { type:"jumper", x:d.x, y:groundYAt(d.x) || 470, hp:2, maxHp:2, state:"crouch", t:0.5 + Math.random() * 0.5, vx:0, vy:0, flashT:0, dead:false };
-  if (d.type === "brute") return { type:"brute", x:d.x, y:groundYAt(d.x) || 440, hp:20, maxHp:20, state:"idle", t:0, face:-1, flashT:0, dead:false };
+  if (d.type === "brute") return { type:"brute", x:d.x, y:groundYAt(d.x) || 440, min:d.min, max:d.max, hp:20, maxHp:20, state:"idle", t:0, face:-1, flashT:0, dead:false };
+  if (d.type === "diver") return { type:"diver", x:d.x, y:d.y, homeY:d.y, min:(d.min != null ? d.min : d.x - 200), max:(d.max != null ? d.max : d.x + 200), hp:2, maxHp:2, mode:"lurk", cd:1 + Math.random(), t:0, vx:0, vy:0, subTarget:d.x, ph:Math.random() * 6, face:-1, flashT:0, dead:false };
   return { type:"turret", x:d.x, baseY:d.baseY, hp:4, maxHp:4, t:1.2 + Math.random() * 0.8, told:false, flashT:0, dead:false };
 }
 /* boss */
@@ -1531,14 +1686,24 @@ const SOLID_OBJS = SOLIDS.map((s) => ({ x:s[0], y:s[1], w:s[2], h:s[3] }))
 for (const s of SOLID_OBJS){   /* the arena's floating platforms are glass */
   if (s.x >= ARENA_X0 && s.h <= 16 && s.y < ARENA_FLOOR) s.glass = true;
 }
-const SEAL_OBJ = { x:7012, y:180, w:12, h:440 };   /* arena entry seal, locks in on transition */
+const SEAL_OBJ = { x:ARENA_X0 + 12, y:180, w:12, h:440 };   /* arena entry seal, locks in on transition */
 const SHUTTER_OBJ = { x:SHUTTER.x, y:SHUTTER.y, w:SHUTTER.w, h:SHUTTER.h };
 function allSolids(){
   const list = SOLID_OBJS.concat(MOVERS);
   for (const c of crumbles) if (c.state !== "gone") list.push(c);
   if (!shutterOpen) list.push(SHUTTER_OBJ);
   if (sealActive) list.push(SEAL_OBJ);
+  if (!BREAKABLE.broken) list.push(BREAKABLE);
+  for (const d of GATE_DOORS){
+    const curH = d.h * (1 - d.open);
+    if (curH > 138) list.push({ x:d.x, y:d.top, w:d.w, h:curH });   /* a raised shutter clears his head at curH <= 138 */
+  }
+  if (CRUSHER.state !== "slam") list.push(crusherHeadRect());
+  if (foremanSealed) list.push(FOREMAN_SEAL);
   return list;
+}
+function crusherHeadRect(){
+  return { x:CRUSHER.x - CRUSHER.w / 2, y:CRUSHER.bottom - CRUSHER.headH, w:CRUSHER.w, h:CRUSHER.headH, crusher:true };
 }
 function groundYAt(x){
   let best = null;
@@ -1556,8 +1721,35 @@ function moveAndCollide(dt){
   P.x += P.vx * dt;
   for (const s of solids){
     if (P.x + PW/2 > s.x && P.x - PW/2 < s.x + s.w && P.y > s.y && P.y - P.h < s.y + s.h){
-      if (P.vx > 0) P.x = s.x - PW/2; else if (P.vx < 0) P.x = s.x + s.w + PW/2;
-      if (P.dashT <= 0) P.vx = 0;
+      /* A1 STEP-UP ASSIST: grounded, and the blocker is a step whose top
+         is <=20px above his feet with headroom to stand on it — walk up
+         instead of stopping. The height rule IS the wall exclusion:
+         anything taller still blocks, and it never applies in air. */
+      let stepped = false;
+      if (P.grounded && !P.onLadder){
+        const rise = P.y - s.y;
+        if (rise > 0.5 && rise <= 20){
+          stepped = true;
+          for (const o of solids){
+            if (o === s) continue;
+            if (P.x + PW/2 > o.x && P.x - PW/2 < o.x + o.w && s.y > o.y && s.y - P.h < o.y + o.h){ stepped = false; break; }
+          }
+          if (stepped){
+            P.y = s.y;
+            /* carry him 2.5px INTO the step: at creep speed the push-out
+               point leaves his edge exactly on the step's face, where the
+               Y-pass 1px inset refuses the landing — he'd go airborne,
+               step-up can't re-fire (it needs grounded), and he oscillates
+               against the face forever. The nudge makes the landing stick. */
+            if (P.x < s.x + s.w / 2) P.x = Math.max(P.x, s.x - PW / 2 + 2.5);
+            else P.x = Math.min(P.x, s.x + s.w + PW / 2 - 2.5);
+          }
+        }
+      }
+      if (!stepped){
+        if (P.vx > 0) P.x = s.x - PW/2; else if (P.vx < 0) P.x = s.x + s.w + PW/2;
+        if (P.dashT <= 0) P.vx = 0;
+      }
     }
   }
   /* Y axis */
@@ -1715,6 +1907,14 @@ function updatePlayer(dt){
   const wasGrounded = P.grounded;
   const wasWallSlidingF = P.wallSliding;
   const fallSpeed = P.vy;
+  /* A3 WADE: feet in a water zone — splash on entry; the ground-move
+     block below reads P.wading for the 0.6x cap */
+  const wasWading = !!P.wading;
+  P.wading = !!waterZoneAt(P.x, P.y);
+  if (P.wading && !wasWading && !P.dead){
+    spawnParticles(P.x, P.y - 24, 10, ["#9fe8ff", "#ffffff"], 110, 0.35, 260);
+    SFX.land(0.4);
+  }
   /* timers */
   P.antT -= dt; P.riseT -= dt; P.fallT -= dt; P.dashRecT -= dt; P.turnT -= dt; P.wallSlapT -= dt;
   P.coyote -= dt; P.jumpBuf -= dt; P.dashCd -= dt; P.hurtT -= dt; P.invulnT -= dt; P.landT -= dt; P.noCutT -= dt; P.slideLatchT -= dt; P.auraBurstT -= dt;
@@ -1798,16 +1998,17 @@ function updatePlayer(dt){
   if (!dashing && P.hurtT <= 0 && P.slideT <= 0){
     const accel = P.onIce ? 620 : (P.grounded ? 2600 : 1750);
     const decel = P.onIce ? 240 : (P.grounded ? 3000 : 500);
+    const gMax = (P.grounded && P.wading) ? RUN_MAX * 0.6 : RUN_MAX;   /* A3: wading drags ground speed to ~0.6x */
     if (inputDir !== 0 && P.wallJumpT <= 0){
-      if (Math.abs(P.vx) <= RUN_MAX || Math.sign(P.vx) !== inputDir){
+      if (Math.abs(P.vx) <= gMax || Math.sign(P.vx) !== inputDir){
         P.vx += inputDir * accel * dt;
-        if (Math.abs(P.vx) > RUN_MAX && Math.sign(P.vx) === inputDir && !P.grounded) { /* keep dash-jump momentum in air */ }
-        else P.vx = Math.max(-RUN_MAX, Math.min(RUN_MAX, P.vx));
+        if (Math.abs(P.vx) > gMax && Math.sign(P.vx) === inputDir && !P.grounded) { /* keep dash-jump momentum in air */ }
+        else P.vx = Math.max(-gMax, Math.min(gMax, P.vx));
       }
       /* grounded overspeed (dash-jump landing) bleeds back to run speed */
-      if (P.grounded && Math.abs(P.vx) > RUN_MAX){
+      if (P.grounded && Math.abs(P.vx) > gMax){
         P.vx -= Math.sign(P.vx) * 1500 * dt;
-        if (Math.abs(P.vx) < RUN_MAX) P.vx = Math.sign(P.vx) * RUN_MAX;
+        if (Math.abs(P.vx) < gMax) P.vx = Math.sign(P.vx) * gMax;
       }
     } else if (inputDir !== 0 && P.wallJumpT > 0){
       P.vx += inputDir * accel * 0.4 * dt;
@@ -1871,12 +2072,13 @@ function updatePlayer(dt){
   if (!IN.jump && P.vy < -245 && P.noCutT <= 0 && !P.cutDone){ P.vy = -245; P.cutDone = true; }
   if (P.vy >= 0 || P.grounded) P.cutDone = false;
 
-  /* --- LADDER: replaces wall-jumping on the shaft's left wall --- */
-  const inLadderZone = Math.abs(P.x - LADDER.x) < 22 && P.y > LADDER.top + 40 && P.y < LADDER.bottom + 20;
-  if (!P.onLadder && inLadderZone && (IN.up || IN.down) && P.slideT <= 0 && !dashing && P.slashT <= 0){
-    P.onLadder = true; P.x = LADDER.x; P.vx = 0; P.dashT = 0; P.wallSliding = false;
+  /* --- LADDERS: P.ladderRef pins the one he is on (list, not singleton) --- */
+  const grabLadder = P.onLadder ? null : LADDERS.find((L) => Math.abs(P.x - L.x) < 22 && P.y > L.top + 40 && P.y < L.bottom + 20);
+  if (!P.onLadder && grabLadder && (IN.up || IN.down) && P.slideT <= 0 && !dashing && P.slashT <= 0){
+    P.onLadder = true; P.ladderRef = grabLadder; P.x = grabLadder.x; P.vx = 0; P.dashT = 0; P.wallSliding = false;
   }
   if (P.onLadder){
+    const LD = P.ladderRef || LADDERS[0];
     P.wallSliding = false;
     /* while a ladder-shoot pose is displayed he HOLDS POSITION to shoot
        (Mega Man X style) — climbing and the ledge mount pause, and
@@ -1889,14 +2091,14 @@ function updatePlayer(dt){
     if (Math.floor(P.climbDist / 26) !== Math.floor(cdPrev / 26)) SFX.ladder();
     P.grounded = false;
     if (P.jumpBuf > 0){
-      P.onLadder = false; P.jumpBuf = 0;
+      P.onLadder = false; P.ladderRef = null; P.jumpBuf = 0;
       P.vy = -560; P.vx = (inputDir !== 0 ? inputDir : P.face) * 150;
       SFX.jump();
-    } else if (P.y <= LADDER.top + 66 && IN.up && !ladderShooting){
-      P.onLadder = false; P.x = 2000; P.y = LADDER.top; P.vy = 0; P.grounded = true;
+    } else if (P.y <= LD.top + 66 && IN.up && !ladderShooting){
+      P.onLadder = false; P.x = LD.exitX; P.y = LD.top; P.vy = 0; P.grounded = true; P.ladderRef = null;
       P.poseFx = "ledgemount"; P.poseFxT = 0.32;
-    } else if (P.y >= LADDER.bottom + 12){
-      P.onLadder = false;
+    } else if (P.y >= LD.bottom + 12){
+      P.onLadder = false; P.ladderRef = null;
     }
   }
 
@@ -1958,21 +2160,28 @@ function updatePlayer(dt){
     P.x += standing.dx || 0;
     if (standing.dy > 0) P.y = standing.y;
   }
-  /* conveyor belt: drags him toward the spike strip — run against it */
-  if (P.grounded && P.y === CONVEYOR.floorY && P.x > CONVEYOR.x0 && P.x < CONVEYOR.x1 && P.slideT <= 0){
-    P.x += CONVEYOR.dir * CONVEYOR.speed * dt;
+  /* conveyor belts: belt 1 carries him with the route, belt 2 fights him */
+  if (P.grounded && P.slideT <= 0){
+    for (const cv of CONVEYORS)
+      if (P.y === cv.floorY && P.x > cv.x0 && P.x < cv.x1) P.x += cv.dir * cv.speed * dt;
   }
+  /* A5: dashing into the cracked vault wall shatters it on contact */
+  if (!BREAKABLE.broken && P.dashT > 0 &&
+      P.x + PW/2 > BREAKABLE.x - 2 && P.x - PW/2 < BREAKABLE.x + BREAKABLE.w + 2 &&
+      P.y > BREAKABLE.y && P.y - P.h < BREAKABLE.y + BREAKABLE.h) breakWall();
   /* crumbling platforms: crack under his weight, fall, respawn */
   if (P.grounded && standing && standing.crumble){
     if (standing.state === "idle") standing.state = "crack";
     if (standing.state === "crack" && Math.random() < 0.4)
       spawnParticles(P.x, P.y + 2, 1, ["#8fa3c7"], 40, 0.3, 200);
   }
-  /* bounce pad: launches him up the shaft toward the heart ledge */
-  if (!P.grounded && P.vy > 60 && P.bounceCd <= 0 && Math.abs(P.x - BOUNCE_PAD.x) < 36 && P.y > BOUNCE_PAD.y - 16 && P.y < BOUNCE_PAD.y + 14){
-    P.vy = -1090; P.bounceCd = 0.4; P.airDashed = false; P.spinUsed = false;
-    SFX.jump(); spawnSpart("fxring", P.x, BOUNCE_PAD.y - 8, 0, 0, 0.3, 70, 0, 0);
-    toast("BOUNCE PAD", 0.7);
+  /* bounce pads (A6): launch him back out of the stairwell pit */
+  for (const pad of PADS){
+    if (!P.grounded && P.vy > 60 && P.bounceCd <= 0 && Math.abs(P.x - pad.x) < 36 && P.y > pad.y - 16 && P.y < pad.y + 14){
+      P.vy = -1090; P.bounceCd = 0.4; P.airDashed = false; P.spinUsed = false;
+      SFX.jump(); spawnSpart("fxring", P.x, pad.y - 8, 0, 0, 0.3, 70, 0, 0);
+      toast("BOUNCE PAD", 0.7);
+    }
   }
   if (P.grounded && !wasGrounded){
     P.diveActive = false;
@@ -1994,7 +2203,10 @@ function updatePlayer(dt){
     const rdPrev = P.runDist;
     P.runDist += Math.abs(P.vx) * dt;
     /* footfalls land on the run cycle's contact frames (every 5 of 10) */
-    if (Math.abs(P.vx) > 120 && P.slideT <= 0 && Math.floor(P.runDist / 170) !== Math.floor(rdPrev / 170)) SFX.step();
+    if (Math.abs(P.vx) > 120 && P.slideT <= 0 && Math.floor(P.runDist / 170) !== Math.floor(rdPrev / 170)){
+      SFX.step();
+      if (P.wading) spawnParticles(P.x, P.y - 2, 3, ["#9fe8ff"], 60, 0.25, 200);   /* A3: wading footsteps splash */
+    }
   }
 
   /* spikes */
@@ -2068,6 +2280,7 @@ function updatePlayer(dt){
         spawnHealFx(pk.x, py);
       } else if (kind === "shard"){
         runState.shards++;
+        if (pk.shardIdx != null) runState.shardsClaimed[pk.shardIdx] = true;   /* placed shards stay claimed across deaths */
         spawnParticles(pk.x, py, 6, ["#c9a7ff", "#9a6bff"], 80, 0.35, -40);
       } else if (kind === "coretank"){
         P.hp = P.maxHp; toast("POWER CELL RECOVERED — FULLY RESTORED", 1.6);
@@ -2092,15 +2305,15 @@ function updatePlayer(dt){
     STORY.dashLine = true;
     startComms([{ who:"ECHO", text:"Your dash thrusters still answer. Use them." }]);
   }
-  if (!STORY.laserLine && STORY.dashLine && P.x > 806){
+  if (!STORY.laserLine && STORY.dashLine && P.x > 13350 && P.y > 1500){
     STORY.laserLine = true;
     startComms([{ who:"ECHO", text:"That gate cycles. Slide under the beam — or wait for the dark half." }]);
   }
-  if (!STORY.beltLine && P.x > 1420 && P.x < 1850){
+  if (!STORY.beltLine && P.x > 7060 && P.x < 7700 && P.y > 1500){
     STORY.beltLine = true;
-    startComms([{ who:"ECHO", text:"The belt still runs. It drags toward the spikes — run against it." }]);
+    startComms([{ who:"ECHO", text:"The belts still run down here. One carries you, one fights you — and the crusher at the end is not a door." }]);
   }
-  if (!STORY.relay && P.x > 1900 && P.x < 2560 && P.y < 345){
+  if (!STORY.relay && P.x > 6000 && P.x < 6450 && P.y > 1000 && P.y < 1200){
     STORY.relay = true;
     pendingScene = { lines:SCENE_RELAY, onDone:null }; pendingSceneT = 0.35;
   }
@@ -2109,7 +2322,7 @@ function updatePlayer(dt){
     pendingScene = { lines:SCENE_CAPSULE, onDone:null }; pendingSceneT = 0.25;
   }
   if (!STORY.aegis){
-    const yardSw = enemies.find((e) => e.type === "shieldwalker" && !e.dead && e.min === 3470);
+    const yardSw = enemies.find((e) => e.type === "shieldwalker" && !e.dead && e.beat);
     if (yardSw && P.x > yardSw.x - 290 && P.x < yardSw.x - 30 && Math.abs(P.y - yardSw.y) < 130)
       startAegisBeat(yardSw);
   }
@@ -2456,12 +2669,19 @@ function enemyBox(e){
   if (e.type === "mortar") return { x:e.x - 36, y:e.baseY - 64, w:72, h:64 };
   if (e.type === "mine") return { x:e.x - 22, y:e.y - 22, w:44, h:44 };
   if (e.type === "jumper") return { x:e.x - 24, y:e.y - 64, w:48, h:64 };
+  if (e.type === "diver"){
+    if (e.mode === "sub") return { x:-9999, y:-9999, w:1, h:1 };   /* untouchable below the surface */
+    if (e.mode === "leap") return { x:e.x - 17, y:e.y - 16, w:34, h:32 };
+    return { x:e.x - 17, y:e.y - 8, w:34, h:20 };                   /* lurking: eyes + back at the surface line */
+  }
   if (e.type === "brute") return { x:e.x - 44, y:e.y - 122, w:88, h:122 };
   return { x:e.x - 34, y:e.baseY - 66, w:68, h:66 };
 }
 function bossBox(){ return { x:B.x - 46, y:B.y - 196, w:92, h:196 }; }
 function damageEnemy(e, dmg, dir, opts){
   opts = opts || {};
+  /* A4 DIVER: submerged it cannot be hit — only lurking and airborne count */
+  if (e.type === "diver" && e.mode === "sub") return false;
   /* SHIELD WALKER: the front plate eats bolts and blade alike. It does NOT
      stop a launcher pop, the combo-3 chop, a blade beam, or anything that
      reaches its back. A blocked hit flashes the shield bubble. */
@@ -2703,6 +2923,40 @@ function updateEnemies(dt){
         if (e.y >= gy){ e.y = gy; e.state = "crouch"; e.t = 0.65 + Math.random() * 0.5; e.vx = 0; e.vy = 0; }
       }
       if (!P.dead && Math.abs(P.x - e.x) < 30 && P.y > e.y - 66 && P.y - P.h < e.y) hurtPlayer(2, e.x);
+    } else if (e.type === "diver"){
+      /* A4 DIVER: lurk at the surface (eyes up) -> ballistic leap at
+         Sable -> splash down -> submerge + reposition -> lurk again */
+      e.t += dt;
+      const surf = e.homeY;
+      if (e.mode === "lurk"){
+        e.y = surf + Math.sin(stageTime * 2.2 + e.ph) * 2;
+        const want = Math.max(e.min, Math.min(e.max, P.x));
+        e.x += Math.max(-16 * dt, Math.min(16 * dt, want - e.x));
+        e.face = P.x < e.x ? -1 : 1;
+        e.cd -= dt;
+        if (e.cd <= 0 && !P.dead && Math.abs(P.x - e.x) < 250 && P.y > surf - 190 && P.y < surf + 90){
+          const dxp = P.x - e.x, T = Math.max(0.55, Math.min(0.95, Math.abs(dxp) / 300));
+          e.vx = dxp / T;
+          e.vy = ((P.y - 16) - e.y - 0.5 * 1500 * T * T) / T;
+          e.mode = "leap"; e.t = 0;
+          spawnParticles(e.x, surf, 10, ["#9fe8ff", "#ffffff"], 120, 0.4, 300);
+          SFX.jump();
+        }
+      } else if (e.mode === "leap"){
+        e.vy += 1500 * dt; e.x += e.vx * dt; e.y += e.vy * dt;
+        e.face = e.vx < 0 ? -1 : 1;
+        if (e.vy > 0 && e.y >= surf + 24){
+          e.y = surf + 24; e.mode = "sub"; e.t = 0;
+          e.subTarget = Math.max(e.min, Math.min(e.max, P.x + (Math.random() - 0.5) * 120));
+          spawnParticles(e.x, surf, 12, ["#9fe8ff", "#ffffff"], 140, 0.45, 300);
+          SFX.land(0.6);
+        }
+      } else {   /* sub: hidden, sliding to a new ambush spot */
+        e.y = surf + 24;
+        e.x += Math.max(-95 * dt, Math.min(95 * dt, e.subTarget - e.x));
+        if (e.t > 0.95){ e.mode = "lurk"; e.cd = 0.7 + Math.random() * 0.6; }
+      }
+      if (e.mode !== "sub" && !P.dead && Math.abs(P.x - e.x) < 30 && Math.abs((P.y - 30) - e.y) < 40) hurtPlayer(2, e.x);
     } else if (e.type === "brute"){
       e.t += dt;
       e.face = P.x < e.x ? -1 : 1;
@@ -2711,7 +2965,7 @@ function updateEnemies(dt){
         if (adx < 480 && Math.abs(P.y - e.y) < 130){ e.state = "walk"; e.t = 0; toast("FOREMAN-9 — YARD OVERSEER", 1.4); }
       } else if (e.state === "walk"){
         e.x += e.face * 52 * dt;
-        e.x = Math.max(3140, Math.min(3620, e.x));
+        e.x = Math.max(e.min, Math.min(e.max, e.x));   /* arena bounds come from the def, not literals */
         e.walkPh = (e.walkPh || 0) + Math.abs(52 * dt);
         if (e.t > 1.5){
           e.t = 0;
@@ -2728,9 +2982,9 @@ function updateEnemies(dt){
         if (e.t > 0.32){ e.t = 0; e.state = "charge"; SFX.dash(); SFX.turretTell(e.x); }
       } else if (e.state === "charge"){
         e.x += e.face * 425 * dt;
-        e.x = Math.max(3100, Math.min(3660, e.x));
+        e.x = Math.max(e.min - 40, Math.min(e.max + 40, e.x));
         if (Math.random() < 0.5) spawnSpart("fxrundust", e.x - e.face * 30, e.y - 4, -e.face * 20, -6, 0.26, 44, 0, 0);
-        if (e.t > 0.62 || (e.face < 0 && e.x <= 3105) || (e.face > 0 && e.x >= 3655)){ e.t = 0; e.state = "recover"; e.stateT = 0.55; }
+        if (e.t > 0.62 || (e.face < 0 && e.x <= e.min - 35) || (e.face > 0 && e.x >= e.max + 35)){ e.t = 0; e.state = "recover"; e.stateT = 0.55; }
       } else if (e.state === "recover"){
         e.stateT -= dt;
         if (e.stateT <= 0){ e.state = "walk"; e.t = 0.4; }
@@ -2893,7 +3147,15 @@ function updateProjectiles(dt){
       hx = b.x + ux * b.len; hy = b.y + uy * b.len;
     }
     const hitAt = (px, py, bx) => px > bx.x - b.r && px < bx.x + bx.w + b.r && py > bx.y - b.r && py < bx.y + bx.h + b.r;
-    let kill = cx < camX - 80 || cx > camX + VW + 80 || cy < camY - 90 || cy > camY + VH + 90 || hitSolid(cx, cy);
+    let kill = false;
+    /* A5 BREAKABLE WALL: only a full-charge bolt (b.big) cracks it open.
+       Normal/mid bolts and the blade beam spark off the fracture. */
+    if (!BREAKABLE.broken && (pointInBreakable(cx, cy) || pointInBreakable(hx, hy))){
+      if (b.big && !b.beam) breakWall();
+      else spawnParticles(cx, cy, 5, ["#ffd76a", "#ffffff"], 110, 0.22, 120);
+      kill = true;
+    }
+    if (!kill) kill = cx < camX - 80 || cx > camX + VW + 80 || cy < camY - 90 || cy > camY + VH + 90 || hitSolid(cx, cy);
     if (!kill){   /* shells and big orbs can be shot down mid-flight */
       for (const s of eBolts){
         if (s.dead || !(s.shell || s.bigorb)) continue;
@@ -3013,6 +3275,123 @@ function updateMechanics(dt){
     } else if (P.standingOn !== c) c.t = 0;
   }
   SAW.t += dt * 1.15;
+  updateCrusher(dt);
+  updateGateDoors(dt);
+  updateForemanSeal();
+}
+/* ---------------- GRAYBOX new-system helpers ---------------- */
+function waterZoneAt(x, feetY){
+  for (const z of WATER_ZONES)
+    if (x > z.x && x < z.x + z.w && feetY > z.y && feetY < z.y + z.h) return z;
+  return null;
+}
+function pointInBreakable(x, y){
+  return x > BREAKABLE.x && x < BREAKABLE.x + BREAKABLE.w && y > BREAKABLE.y && y < BREAKABLE.y + BREAKABLE.h;
+}
+function breakWall(){
+  if (BREAKABLE.broken) return;
+  BREAKABLE.broken = true;
+  const cx = BREAKABLE.x + BREAKABLE.w / 2, cy = BREAKABLE.y + BREAKABLE.h / 2;
+  SFX.boom(cx); SFX.clank(cx);
+  spawnParticles(cx, cy, 26, ["#9aa3b8", "#6a6f7d", "#ffffff"], 220, 0.6, 420);
+  spawnLight(cx, cy, 150, "190,200,220", 0.3, 0.6);
+  shakeT = Math.max(shakeT, 0.18);
+  toast("WALL BREACHED — SOMETHING GLEAMS BEYOND", 1.6);
+}
+/* A2 CRUSHER cycle: idle -> warn (>=0.65s: klaxon + dust + flashing
+   light) -> slam (1500px/s; contact = 3 dmg + knockback, finite —
+   never a pit kill) -> hold -> retract */
+function updateCrusher(dt){
+  const C = CRUSHER;
+  C.t += dt;
+  if (C.state === "idle"){
+    C.bottom = C.restBottom;
+    if (C.t > 1.6){ C.state = "warn"; C.t = 0; SFX.warn(); }
+  } else if (C.state === "warn"){
+    if (Math.random() < 0.35) spawnParticles(C.x + (Math.random() - 0.5) * C.w, C.floorY - 2, 1, ["#c9a06a"], 30, 0.4, -60);
+    if (C.t > 0.65){ C.state = "slam"; C.t = 0; }
+  } else if (C.state === "slam"){
+    C.bottom = Math.min(C.floorY, C.bottom + 1500 * dt);
+    const hr = crusherHeadRect();
+    if (!P.dead && P.invulnT <= 0 && P.x + PW/2 - 4 > hr.x && P.x - PW/2 + 4 < hr.x + hr.w && P.y > hr.y && P.y - P.h < hr.y + hr.h)
+      hurtPlayer(3, C.x, { up:true });
+    if (C.bottom >= C.floorY){
+      C.state = "hold"; C.t = 0;
+      SFX.boom(C.x); shakeT = Math.max(shakeT, 0.22); kick(0, 3);
+      spawnParticles(C.x - 40, C.floorY, 8, ["#c9a06a", "#8fa3c7"], 130, 0.4, 160);
+      spawnParticles(C.x + 40, C.floorY, 8, ["#c9a06a", "#8fa3c7"], 130, 0.4, 160);
+    }
+  } else if (C.state === "hold"){
+    if (C.t > 0.5){ C.state = "retract"; C.t = 0; }
+  } else if (C.state === "retract"){
+    C.bottom -= 420 * dt;
+    if (C.bottom <= C.restBottom){ C.bottom = C.restBottom; C.state = "idle"; C.t = 0; }
+  }
+}
+/* boss gate shutters: proximity-driven; door 1 locks behind him once
+   he is through, door 2 locks when the boss trigger fires */
+function updateGateDoors(dt){
+  for (let i = 0; i < GATE_DOORS.length; i++){
+    const d = GATE_DOORS[i];
+    if (i === 0 && P.x > d.x + d.w + 60) d.locked = true;
+    if (i === 1 && bossTriggered) d.locked = true;
+    const target = (!d.locked && Math.abs(P.x - (d.x + d.w / 2)) < 105) ? 1 : 0;
+    d.open += Math.max(-2.4 * dt, Math.min(2.4 * dt, target - d.open));
+  }
+}
+/* foreman arena: the seal slams when he commits; it lifts when FOREMAN-9 dies */
+function updateForemanSeal(){
+  const brute = enemies.find((e) => e.type === "brute");
+  if (!foremanDone && brute && brute.dead){ foremanDone = true; foremanSealed = false; }
+  if (!foremanSealed && !foremanDone && brute && !brute.dead && P.x > 15260 && P.y > 1000){
+    foremanSealed = true; SFX.clank();
+    toast("THE GATE SLAMS SHUT — FOREMAN-9 IS WAITING", 1.6);
+    spawnParticles(15120, 1760, 12, ["#ffb37d", "#ffffff"], 130, 0.4, 120);
+  }
+}
+/* rain amount at a world point (0 outside the storm zones) */
+function rainAt(x, y){
+  for (const z of RAIN_ZONES)
+    if (x >= z.x0 && x < z.x1 && y >= z.y0 && y < z.y1) return z.amt;
+  return 0;
+}
+let rainNoise = null;
+/* RAIN AMBIENCE HOOK: drives a filtered-noise gain under the music.
+   The dressing phase can swap this stem; the flag/level contract
+   (0..1 from rainAt) stays. No wind force is ever applied. */
+function rainAmbience(level){
+  if (!AC) return;
+  try {
+    if (!rainNoise){
+      const len = AC.sampleRate * 2;
+      const buf = AC.createBuffer(1, len, AC.sampleRate);
+      const ch = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+      const srcNode = AC.createBufferSource();
+      srcNode.buffer = buf; srcNode.loop = true;
+      const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900;
+      const g = AC.createGain(); g.gain.value = 0;
+      srcNode.connect(lp); lp.connect(g); g.connect(AC.destination);
+      srcNode.start();
+      rainNoise = { g:g };
+    }
+    rainNoise.g.gain.setTargetAtTime(Math.max(0, Math.min(1, level)) * 0.045, AC.currentTime, 0.4);
+  } catch(e){ /* ambience is garnish — never break the frame on it */ }
+}
+/* slanted rain streaks, screen space, density follows rainLevel */
+function drawRain(){
+  const n = Math.floor(110 * rainLevel);
+  ctx.save();
+  ctx.strokeStyle = "rgba(170,205,255," + (0.34 * rainLevel + 0.08) + ")";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  for (let i = 0; i < n; i++){
+    const hx = ((i * 173.3) % (VW + 120)) - 60;
+    const hy = ((i * 271.7 + stageTime * 620 * (0.7 + (i % 5) * 0.12)) % (VH + 60)) - 30;
+    ctx.moveTo(hx, hy); ctx.lineTo(hx - 3.5, hy + 15);
+  }
+  ctx.stroke();
+  ctx.restore();
 }
 /* ---------------- dialogue system ----------------
    Scenes freeze the world (MMX story beats); comms are one-line contextual
@@ -3032,17 +3411,17 @@ const SCENE_OPEN = [
 ];
 const SCENE_BEACON = [
   { who:"SABLE", text:"Beacon's dark. Let's fix that." },
-  { who:"ECHO", text:"Light — light in the corridor. That's the first thing that's come back. Thank you. The shaft is open — climb, and be careful." }
+  { who:"ECHO", text:"Light — light in the corridor. That's the first thing that's come back. Thank you. The stairwell is open — head down, and be careful." }
 ];
 const SCENE_RELAY = [
   { who:"RELAY", text:"—able? Sable, is that you? It's RELAY. I'm alive in the network. Barely. Don't answer — just listen." },
   { who:"RELAY", text:"Those floating mines are the Wraith's seeds. Don't touch them. Two bolts crack one — or a single full charge clears it safely." },
-  { who:"SABLE", text:"Hold on up there. I'm climbing." }
+  { who:"SABLE", text:"Hold on up there. I'm coming down." }
 ];
 const SCENE_AEGIS = [
   { who:"AEGIS", text:"You fight like the records said you would." },
   { who:"SABLE", text:"The records lie." },
-  { who:"AEGIS", text:"Then I'll judge what you do, not what was written. The yard is yours — FOREMAN-9 holds the beacon's missing power cell in its core tank. I'll hold this exit." }
+  { who:"AEGIS", text:"Then I'll judge what you do, not what was written. The arena is yours — FOREMAN-9 holds the beacon's missing power cell in its core tank. I'll hold this exit." }
 ];
 const SCENE_CAPSULE = [
   { who:"AEGIS", text:"Sable — that capsule is Rewritten-era. A med station, from before the purge. It will patch you whole and hold a shield charge. Use it." }
@@ -3197,7 +3576,7 @@ function drawDialogue(){
    the yard exit while Sable faces FOREMAN-9. Runs exactly once. */
 const AEGIS_BEAT = { active:false, t:0, phase:0, x:0, y:0, sw:null, slashed:false };
 let aegisGuard = false;
-const AEGIS_GUARD_X = 3912;
+let AEGIS_GUARD_X = 14960, AEGIS_GUARD_Y = 1760;   /* her post: corridor end, before the arena door */
 function startAegisBeat(sw){
   STORY.aegis = true;
   AEGIS_BEAT.active = true; AEGIS_BEAT.t = 0; AEGIS_BEAT.phase = 0;
@@ -3284,9 +3663,20 @@ function bgSectionGrad(sec, st){
   return g;
 }
 function drawBackground(){
+  if (GRAYBOX){
+    /* flat mood field + a faint world grid so the multi-band depth reads */
+    const st = SECTION_STYLE[sectionAt(camX + VW / 2, camY + VH / 2)];
+    ctx.fillStyle = st.bg1; ctx.fillRect(0, 0, VW, VH);
+    ctx.strokeStyle = "rgba(140,170,255,0.05)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let gx = -(camX % 110); gx < VW; gx += 110){ ctx.moveTo(gx, 0); ctx.lineTo(gx, VH); }
+    for (let gy = -(camY % 110); gy < VH; gy += 110){ ctx.moveTo(0, gy); ctx.lineTo(VW, gy); }
+    ctx.stroke();
+    return;
+  }
   /* section mood: picked off the camera's current center, same buckets
      drawPlatform() uses, so the sky and the platforms always agree */
-  const sec = sectionAtX(camX + VW / 2);
+  const sec = sectionAt(camX + VW / 2, camY + VH / 2);
   const st = SECTION_STYLE[sec];
   ctx.fillStyle = bgSectionGrad(sec, st); ctx.fillRect(0, 0, VW, VH);
   if (IMG.bg){
@@ -3321,10 +3711,27 @@ function drawBackground(){
   }
 }
 function sectionOf(s){
-  return sectionAtX(s.x + s.w / 2);
+  return sectionAt(s.x + s.w / 2, s.y + 6);
 }
 function drawPlatform(s){
   const x = s.x, y = s.y, w = s.w, h = s.h;
+  if (GRAYBOX){
+    /* flat section-tinted block: lighter top edge, dark outline;
+       movers get diagonal hatching so they read as machinery */
+    ctx.fillStyle = GB_TINTS[sectionIndexAt(x + w / 2, y + h / 2)];
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "rgba(255,255,255,0.20)";
+    ctx.fillRect(x, y, w, Math.min(3, h));
+    ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    if (s.isMover){
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.beginPath();
+      for (let hx = x - h; hx < x + w; hx += 14){ ctx.moveTo(hx, y + h); ctx.lineTo(hx + h, y); }
+      ctx.stroke();
+    }
+    return;
+  }
   /* sprite-skinned slabs: movers, ice, and the arena's glass platforms */
   if (IMG.mech && (s.isMover || s.ice || s.glass)){
     const f = MECH_FRAMES[s.isMover ? "moveplat" : (s.ice ? "iceplat" : "glassplat")];
@@ -3507,22 +3914,22 @@ function drawDecor(d){
    baked under turret positions and heavy combat floors. Grouped per
    section like DECOR above; same values, same rendering, just organized
    so each area's floor dressing can be found and edited on its own. */
-const TRACE_SEGS_BAY      = [ [8, 1050, 470] ];
-const TRACE_SEGS_CORRIDOR = [ [1298, 1842, 470] ];
+const TRACE_SEGS_BAY      = [ [8, 1990, 470] ];
+const TRACE_SEGS_CORRIDOR = [ ];
 const TRACE_SEGS_SHAFT    = [ ];                      /* vertical — no single floor run */
-const TRACE_SEGS_YARD     = [ [3088, 3942, 440] ];
-const TRACE_SEGS_APPROACH = [ [5568, 6262, 440] ];
-const TRACE_SEGS_ARENA    = [ [7008, 8992, 620] ];
+const TRACE_SEGS_YARD     = [ ];
+const TRACE_SEGS_APPROACH = [ ];
+const TRACE_SEGS_ARENA    = [ [24008, 25992, 620] ];
 const TRACE_SEGS = [
   ...TRACE_SEGS_BAY, ...TRACE_SEGS_CORRIDOR, ...TRACE_SEGS_SHAFT,
   ...TRACE_SEGS_YARD, ...TRACE_SEGS_APPROACH, ...TRACE_SEGS_ARENA
 ];
-const SCORCH_BAY      = [ [720, 468, 44] ];
-const SCORCH_CORRIDOR = [ [1620, 468, 40] ];
+const SCORCH_BAY      = [ ];
+const SCORCH_CORRIDOR = [ ];
 const SCORCH_SHAFT    = [ ];
-const SCORCH_YARD     = [ [3720, 438, 46] ];
-const SCORCH_APPROACH = [ [4012, 339, 52], [5352, 195, 46] ];
-const SCORCH_ARENA    = [ [8400, 618, 60] ];
+const SCORCH_YARD     = [ ];
+const SCORCH_APPROACH = [ ];
+const SCORCH_ARENA    = [ [25400, 618, 60] ];
 const SCORCH = [
   ...SCORCH_BAY, ...SCORCH_CORRIDOR, ...SCORCH_SHAFT,
   ...SCORCH_YARD, ...SCORCH_APPROACH, ...SCORCH_ARENA
@@ -3571,7 +3978,7 @@ function drawGate(){
     const f = WRAITH2_FRAMES.w2gate, sc = 252 / f.h;
     ctx.save();
     ctx.shadowColor = "rgba(154,107,255,0.55)"; ctx.shadowBlur = 16;
-    ctx.drawImage(IMG.wraith2, f.x, f.y, f.w, f.h, GATE_X - f.ax * sc, 440 - 252, f.w * sc, 252);
+    ctx.drawImage(IMG.wraith2, f.x, f.y, f.w, f.h, GATE_X - f.ax * sc, 470 - 252, f.w * sc, 252);
     ctx.restore();
   } else {
     ctx.fillStyle = "#232a52";
@@ -3617,20 +4024,24 @@ function drawMechSprite(name, cx, bottomY, targetW, alpha){
 /* all the placed machinery: ladder, bounce pad, laser gate, conveyor,
    shutter + switch, capsule, crumbles, spike balls, saw, wrecks, waves */
 function drawMechanics(){
+  if (GRAYBOX){ drawGrayMechanics(); return; }
   if (IMG.mech){
     /* ladder up the shaft's left wall (clipped to its run) */
     const lf = MECH_FRAMES.ladder, lw = 34, lh = lf.h * (lw / lf.w);
-    ctx.save();
-    ctx.beginPath(); ctx.rect(LADDER.x - 19, LADDER.top - 4, 38, LADDER.bottom + 62 - LADDER.top); ctx.clip();
-    for (let yy = LADDER.top - 4; yy < LADDER.bottom + 62; yy += lh - 2)
-      ctx.drawImage(IMG.mech, lf.x, lf.y, lf.w, lf.h, LADDER.x - lw / 2, yy, lw, lh);
-    ctx.restore();
-    /* bounce pad */
-    drawMechSprite("bouncepad", BOUNCE_PAD.x, BOUNCE_PAD.y + 2, 78);
-    /* conveyor segment on the lower corridor floor */
+    for (const LD of LADDERS){
+      ctx.save();
+      ctx.beginPath(); ctx.rect(LD.x - 19, LD.top - 4, 38, LD.bottom + 62 - LD.top); ctx.clip();
+      for (let yy = LD.top - 4; yy < LD.bottom + 62; yy += lh - 2)
+        ctx.drawImage(IMG.mech, lf.x, lf.y, lf.w, lf.h, LD.x - lw / 2, yy, lw, lh);
+      ctx.restore();
+    }
+    /* bounce pads */
+    for (const pd2 of PADS) drawMechSprite("bouncepad", pd2.x, pd2.y + 2, 78);
+    /* conveyor segments on the works floor */
     const cf = MECH_FRAMES.conveyor;
-    for (let xx = CONVEYOR.x0; xx < CONVEYOR.x1; xx += 108)
-      ctx.drawImage(IMG.mech, cf.x, cf.y, cf.w, cf.h, xx, CONVEYOR.floorY - 24, 108, 26);
+    for (const cv2 of CONVEYORS)
+      for (let xx = cv2.x0; xx < cv2.x1; xx += 108)
+        ctx.drawImage(IMG.mech, cf.x, cf.y, cf.w, cf.h, xx, cv2.floorY - 24, 108, 26);
     /* spike strips wear their sprite skin */
     for (const sp of SPIKES) drawMechSprite("spikestrip", sp[0] + sp[2] / 2, sp[1] + 17, sp[2] + 10);
     /* laser gate: two pylons + the beam on its 2s cycle */
@@ -4011,6 +4422,227 @@ function drawChargeBurst(){
   ctx.beginPath(); ctx.arc(gx, gy, 4 + k * 30, 0, 7); ctx.stroke();
   ctx.restore();
 }
+/* ---------------- GRAYBOX drawing ----------------
+   Flat, legible placeholders: the layout IS the deliverable of this
+   pass. Every dressed-path function stays untouched behind the flag. */
+const GB_ENEMY_COLORS = { walker:"#7a4a8f", drone:"#4a6e9f", crawler:"#9f4a5a", swooper:"#4a8f7a", shieldwalker:"#5a6e9f", ceilturret:"#8f7a4a", mortar:"#6e5a8f", mine:"#b03a4a", jumper:"#4a9f6e", brute:"#a05a2a", turret:"#7a7a9f" };
+function drawGrayEnemy(e){
+  if (e.type === "diver"){ drawDiver(e); return; }
+  const bx = enemyBox(e);
+  ctx.fillStyle = e.flashT > 0 ? "#ffffff" : (GB_ENEMY_COLORS[e.type] || "#666a80");
+  if (e.type === "mine"){
+    ctx.beginPath(); ctx.arc(e.x, e.y, 20, 0, 7); ctx.fill();
+    ctx.fillStyle = (e.fuse >= 0 && Math.sin(stageTime * 34) > 0) ? "#ffffff" : "#ff5c5c";
+    ctx.beginPath(); ctx.arc(e.x, e.y, 5, 0, 7); ctx.fill();
+    return;
+  }
+  ctx.fillRect(bx.x, bx.y, bx.w, bx.h);
+  ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.lineWidth = 2;
+  ctx.strokeRect(bx.x + 1, bx.y + 1, bx.w - 2, bx.h - 2);
+  ctx.lineWidth = 1;
+  if (e.type === "shieldwalker"){
+    ctx.fillStyle = "rgba(160,230,255,0.5)";
+    ctx.fillRect(e.x + e.face * 26 - 5, e.y - 92, 10, 84);
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = "bold 15px monospace"; ctx.textAlign = "center";
+  ctx.fillText(e.type.slice(0, 2).toUpperCase(), e.x, bx.y + 20);
+  ctx.textAlign = "left";
+}
+/* the DIVER is new with this rebuild, so it draws vector in BOTH paths
+   until the dressing phase gives it a sprite sheet */
+function drawDiver(e){
+  ctx.save();
+  if (e.mode === "sub") ctx.globalAlpha = 0.22;
+  if (e.flashT > 0) ctx.globalAlpha = 1;
+  ctx.fillStyle = e.flashT > 0 ? "#ffffff" : "#3f7d5a";
+  if (e.mode === "leap"){
+    ctx.beginPath(); ctx.ellipse(e.x, e.y, 17, 13, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = e.flashT > 0 ? "#ffffff" : "#2c5a40";
+    ctx.fillRect(e.x - 17, e.y + 6, 11, 8); ctx.fillRect(e.x + 6, e.y + 6, 11, 8);
+  } else {
+    ctx.beginPath(); ctx.ellipse(e.x, e.y + 6, 17, 10, 0, 0, 7); ctx.fill();
+  }
+  /* eyes on stalks — the lurk tell */
+  ctx.strokeStyle = e.flashT > 0 ? "#ffffff" : "#2c5a40"; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(e.x - 7, e.y - 2); ctx.lineTo(e.x - 7, e.y - 10);
+  ctx.moveTo(e.x + 7, e.y - 2); ctx.lineTo(e.x + 7, e.y - 10);
+  ctx.stroke(); ctx.lineWidth = 1;
+  ctx.fillStyle = "#ffd76a";
+  ctx.beginPath(); ctx.arc(e.x - 7, e.y - 11, 3.4, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(e.x + 7, e.y - 11, 3.4, 0, 7); ctx.fill();
+  ctx.fillStyle = "#141414";
+  ctx.beginPath(); ctx.arc(e.x - 7 + e.face * 1.4, e.y - 11, 1.6, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(e.x + 7 + e.face * 1.4, e.y - 11, 1.6, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawGrayPlayer(){
+  const h = P.h;
+  ctx.fillStyle = P.hurtT > 0.2 ? "#ff8fa8" : "#e8e4da";
+  ctx.fillRect(P.x - 11, P.y - h, 22, h);
+  ctx.fillStyle = "#2a2f45";
+  ctx.fillRect(P.x - 11, P.y - 18, 22, 18);
+  ctx.fillStyle = "#e8e4da";
+  ctx.fillRect(P.x - 9, P.y - h - 12, 18, 13);
+  ctx.fillStyle = "#35e0ff";
+  ctx.fillRect(P.x + (P.face > 0 ? 1 : -8), P.y - h - 8, 7, 3);
+  /* blaster: a gun block run out to the DISPLAYED frame's muzzle, so
+     the aim regression reads the same in graybox as in sprites */
+  const mz = muzzleWorld(currentPoseName());
+  if (mz){
+    ctx.strokeStyle = "#9aa3b8"; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(P.x + P.face * 8, P.y - h + 22); ctx.lineTo(mz.x, mz.y); ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+  if (P.shield){
+    ctx.strokeStyle = "rgba(53,224,255,0.7)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(P.x, P.y - 30, 40, 0, 7); ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+}
+function drawGrayBoss(){
+  ctx.fillStyle = B.flashT > 0 ? "#ffffff" : "#6e3a8f";
+  ctx.fillRect(B.x - 46, B.y - 196, 92, 196);
+  ctx.strokeStyle = "#c08bff"; ctx.lineWidth = 2;
+  ctx.strokeRect(B.x - 46, B.y - 196, 92, 196);
+  ctx.lineWidth = 1;
+  ctx.fillStyle = "#ff5a8a";
+  ctx.beginPath(); ctx.arc(B.x + B.face * 14, B.y - 168, 6, 0, 7); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
+  ctx.fillText("WRAITH", B.x, B.y - 206);
+  ctx.textAlign = "left";
+}
+function drawGrayAegis(){
+  const ax2 = (aegisGuard && !AEGIS_BEAT.active) ? AEGIS_GUARD_X : AEGIS_BEAT.x;
+  const ay2 = (aegisGuard && !AEGIS_BEAT.active) ? AEGIS_GUARD_Y : AEGIS_BEAT.y;
+  ctx.fillStyle = "#d8a83c";
+  ctx.fillRect(ax2 - 11, ay2 - 62, 22, 62);
+  ctx.fillStyle = "#fff2c9"; ctx.fillRect(ax2 - 8, ay2 - 74, 16, 12);
+  ctx.fillStyle = "#ffe9a8"; ctx.font = "bold 10px monospace"; ctx.textAlign = "center";
+  ctx.fillText("AEGIS", ax2, ay2 - 82);
+  ctx.textAlign = "left";
+}
+function drawGrayMechanics(){
+  /* ladders: rails + rungs */
+  for (const L of LADDERS){
+    ctx.strokeStyle = "#8fa3c7"; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(L.x - 12, L.top); ctx.lineTo(L.x - 12, L.bottom + 40);
+    ctx.moveTo(L.x + 12, L.top); ctx.lineTo(L.x + 12, L.bottom + 40);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let yy = L.top + 12; yy < L.bottom + 40; yy += 22){ ctx.moveTo(L.x - 12, yy); ctx.lineTo(L.x + 12, yy); }
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+  /* bounce pads: holo ring + chevron (A6) */
+  for (const pad of PADS){
+    ctx.strokeStyle = "#35e0ff"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(pad.x, pad.y - 4, 30, 9, 0, 0, 7); ctx.stroke();
+    ctx.fillStyle = "#35e0ff";
+    ctx.beginPath(); ctx.moveTo(pad.x - 9, pad.y - 16); ctx.lineTo(pad.x + 9, pad.y - 16); ctx.lineTo(pad.x, pad.y - 27); ctx.closePath(); ctx.fill();
+    ctx.lineWidth = 1;
+  }
+  /* conveyors: dark belt + chevrons scrolling with the belt direction */
+  for (const cv of CONVEYORS){
+    ctx.fillStyle = "#191410"; ctx.fillRect(cv.x0, cv.floorY - 20, cv.x1 - cv.x0, 20);
+    ctx.fillStyle = "#ffb37d";
+    const off = ((stageTime * cv.speed * cv.dir) % 36 + 36) % 36;
+    for (let xx = cv.x0 + off; xx < cv.x1 - 10; xx += 36){
+      ctx.beginPath(); ctx.moveTo(xx, cv.floorY - 15); ctx.lineTo(xx + 10 * cv.dir, cv.floorY - 10); ctx.lineTo(xx, cv.floorY - 5); ctx.closePath(); ctx.fill();
+    }
+  }
+  /* laser gate pylons + beam */
+  ctx.fillStyle = "#39406e";
+  ctx.fillRect(LASER.x - 26, LASER.floorY - 122, 10, 122);
+  ctx.fillRect(LASER.x + 16, LASER.floorY - 122, 10, 122);
+  if (laserOn()){
+    ctx.save(); ctx.globalAlpha = 0.8; ctx.fillStyle = "#ff3b30";
+    ctx.fillRect(LASER.x - 5, LASER.floorY - 104, 10, 74);
+    ctx.restore();
+  }
+  /* shutter + pressure switch */
+  if (!shutterOpen){
+    ctx.fillStyle = "#5a6482"; ctx.fillRect(SHUTTER.x, SHUTTER.y, SHUTTER.w, SHUTTER.h);
+    ctx.strokeStyle = "#232a52"; ctx.lineWidth = 1;
+    ctx.strokeRect(SHUTTER.x + 0.5, SHUTTER.y + 0.5, SHUTTER.w - 1, SHUTTER.h - 1);
+  }
+  ctx.fillStyle = switchPressed ? "#35e0ff" : "#39406e";
+  ctx.fillRect(PSWITCH.x - 16, PSWITCH.floorY - 6, 32, 6);
+  /* armor capsule */
+  ctx.strokeStyle = runState.capsuleUsed ? "#5a6482" : "#35e0ff"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.ellipse(CAPSULE.x, CAPSULE.floorY - 44, 22, 44, 0, 0, 7); ctx.stroke();
+  ctx.fillStyle = runState.capsuleUsed ? "#39406e" : "#7df3ff";
+  ctx.fillRect(CAPSULE.x - 3, CAPSULE.floorY - 62, 6, 36);
+  ctx.fillRect(CAPSULE.x - 12, CAPSULE.floorY - 53, 24, 6);
+  ctx.lineWidth = 1;
+  /* crumbles: striped stone, browner while cracking */
+  for (const c of crumbles){
+    if (c.state === "gone") continue;
+    ctx.fillStyle = c.state === "crack" ? "#8a6f4d" : "#6e5636";
+    ctx.fillRect(c.x, c.y, c.w, c.h);
+    ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let hx = c.x - c.h; hx < c.x + c.w; hx += 12){ ctx.moveTo(hx, c.y + c.h); ctx.lineTo(hx + c.h, c.y); }
+    ctx.stroke();
+  }
+  /* boss gate doors: header + leaf + status light */
+  for (const d of GATE_DOORS){
+    const curH = d.h * (1 - d.open);
+    ctx.fillStyle = "#23203a"; ctx.fillRect(d.x - 6, d.top - 20, d.w + 12, 10);
+    ctx.fillStyle = "#4a3a6e"; ctx.fillRect(d.x, d.top, d.w, Math.max(0, curH));
+    ctx.fillStyle = d.locked ? "#ff5c5c" : (d.open > 0.7 ? "#7dffce" : "#ffd76a");
+    ctx.fillRect(d.x + d.w / 2 - 3, d.top - 12, 6, 6);
+  }
+}
+/* water, the breakable wall and the crusher draw in BOTH paths —
+   they are new geometry, not dressing */
+function drawWaterAndBreakable(){
+  for (const z of WATER_ZONES){
+    ctx.fillStyle = "rgba(64,164,255,0.30)";
+    ctx.fillRect(z.x, z.y, z.w, z.h + 16);
+    ctx.fillStyle = "rgba(160,225,255,0.55)";
+    ctx.fillRect(z.x, z.y - 1.5, z.w, 3);
+    ctx.fillStyle = "rgba(200,240,255,0.35)";
+    for (let xx = z.x + 14; xx < z.x + z.w - 10; xx += 46){
+      const yo = Math.sin(stageTime * 2.4 + xx * 0.05) * 1.6;
+      ctx.fillRect(xx, z.y - 1 + yo, 16, 2);
+    }
+  }
+  const B5 = BREAKABLE;
+  if (!B5.broken){
+    ctx.fillStyle = "#6a6f7d"; ctx.fillRect(B5.x, B5.y, B5.w, B5.h);
+    ctx.strokeStyle = "#23242c"; ctx.lineWidth = 2;
+    ctx.strokeRect(B5.x + 1, B5.y + 1, B5.w - 2, B5.h - 2);
+    ctx.strokeStyle = "#2c2e36"; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(B5.x + 6, B5.y + 12); ctx.lineTo(B5.x + 17, B5.y + 46); ctx.lineTo(B5.x + 9, B5.y + 74); ctx.lineTo(B5.x + 20, B5.y + 108);
+    ctx.moveTo(B5.x + 17, B5.y + 46); ctx.lineTo(B5.x + 29, B5.y + 62);
+    ctx.moveTo(B5.x + 9, B5.y + 74); ctx.lineTo(B5.x + 2, B5.y + 92);
+    ctx.stroke(); ctx.lineWidth = 1;
+  } else {
+    ctx.fillStyle = "#565b68";
+    ctx.beginPath();
+    ctx.moveTo(B5.x - 4, B5.y + B5.h); ctx.lineTo(B5.x + 10, B5.y + B5.h - 12); ctx.lineTo(B5.x + 22, B5.y + B5.h);
+    ctx.closePath(); ctx.fill();
+  }
+  /* A2 crusher: housing beam, piston, hazard head, warning light */
+  const C = CRUSHER, hr = crusherHeadRect();
+  ctx.fillStyle = "#3a3f52"; ctx.fillRect(C.x - 170, C.floorY - 342, 340, 16);
+  ctx.fillStyle = "#565e78"; ctx.fillRect(C.x - 9, C.floorY - 326, 18, Math.max(0, (C.bottom - C.headH) - (C.floorY - 326)));
+  ctx.fillStyle = C.state === "slam" ? "#8f4a3a" : "#6e5636";
+  ctx.fillRect(hr.x, hr.y, hr.w, hr.h);
+  ctx.fillStyle = "#14100a";
+  for (let xx = hr.x + 4; xx < hr.x + hr.w - 8; xx += 18) ctx.fillRect(xx, hr.y + hr.h - 10, 10, 6);
+  const warnOn = C.state === "warn" && (stageTime * 9 % 1) < 0.55;
+  ctx.fillStyle = warnOn ? "#ff3b30" : (C.state === "warn" ? "#5a1610" : "#ffb37d");
+  ctx.save();
+  if (warnOn){ ctx.shadowColor = "#ff3b30"; ctx.shadowBlur = 12; }
+  ctx.beginPath(); ctx.arc(C.x, C.floorY - 356, 6, 0, 7); ctx.fill();
+  ctx.restore();
+}
 function drawWorld(){
   ctx.save();
   /* trauma shake: magnitude grows with the square of the remaining shake,
@@ -4024,17 +4656,18 @@ function drawWorld(){
     if (roll){ ctx.translate(VW / 2, VH / 2); ctx.rotate(roll); ctx.translate(-VW / 2, -VH / 2); }
   }
   ctx.translate(-Math.round(camX + shx + camKickX), -Math.round(camY + shy + camKickY));
-  for (const d of DECOR) if (d.back) drawDecor(d);
+  if (!GRAYBOX) for (const d of DECOR) if (d.back) drawDecor(d);
   for (const s of allSolids()){ if (s.crumble || s === SHUTTER_OBJ) continue; if (s.x + s.w > camX - 20 && s.x < camX + VW + 20) drawPlatform(s); }
-  drawFloorDetails();
-  for (const d of DECOR) if (!d.back) drawDecor(d);
+  if (!GRAYBOX) drawFloorDetails();
+  if (!GRAYBOX) for (const d of DECOR) if (!d.back) drawDecor(d);
   for (const sp of SPIKES) drawSpikes(sp);
-  drawGate();
+  drawWaterAndBreakable();
+  if (!GRAYBOX) drawGate();
   drawMechanics();
   for (const c of CHECKPOINTS) drawCheckpoint(c);
   for (const pk of pickups) if (!pk.taken) drawPickup(pk);
   /* ghosts (dash / phantom afterimages) */
-  for (const gh of ghosts){
+  for (const gh of GRAYBOX ? [] : ghosts){
     if (gh.img === "sable"){
       const pd = poseData(gh.frame);
       drawSprite(pd.img, pd.f, gh.x, gh.y, pd.scale, gh.face < 0, (gh.life / gh.max) * 0.42, false, gh.charge ? "charge" : null);
@@ -4048,6 +4681,7 @@ function drawWorld(){
     if (e.x < camX - 160 || e.x > camX + VW + 160) continue;
     ctx.save();
     if (e.flashT > 0) ctx.translate((Math.random() * 2 - 1) * 3.5, (Math.random() * 2 - 1) * 1.5);   /* hit-shake */
+    if (GRAYBOX){ drawGrayEnemy(e); ctx.restore(); continue; }
     if (e.type === "walker"){
       if (e.hp <= e.maxHp / 2 && e.state !== "shoot" && IMG.enemies2){
         /* below half HP the walker wears its damage */
@@ -4109,6 +4743,8 @@ function drawWorld(){
         const f = ENEMY2_FRAMES[e.state === "leap" ? "jumperleap" : "jumpercrouch"];
         drawSprite(IMG.enemies2, f, e.x, e.y, 80 / f.h, P.x < e.x, 1, e.flashT > 0);
       }
+    } else if (e.type === "diver"){
+      drawDiver(e);
     } else if (e.type === "brute"){
       if (IMG.enemies2){
         const f = ENEMY2_FRAMES[(e.state === "slamWind" || e.state === "chargeWind") ? "bruteslam" : "brute"];
@@ -4126,7 +4762,8 @@ function drawWorld(){
     ctx.restore();
   }
   /* boss */
-  if (B.state !== "dead"){
+  if (GRAYBOX){ if (B.state !== "dead" && B.state !== "dormant") drawGrayBoss(); }
+  else if (B.state !== "dead"){
     let fr = "wraithidle";
     if (B.state === "dying") fr = "wraithhurt";
     else if (B.flashT > 0.03) fr = "wraithhurt";
@@ -4176,9 +4813,10 @@ function drawWorld(){
      the LANCE STRIKE lands the hit (flipped — the walker is on her
      left), she stands for the yard dialogue, then runs to her post
      and holds it in the GUARD pose. */
-  if (IMG.aegis && (AEGIS_BEAT.active || aegisGuard)){
+  if (GRAYBOX && (AEGIS_BEAT.active || aegisGuard)){ drawGrayAegis(); }
+  else if (IMG.aegis && (AEGIS_BEAT.active || aegisGuard)){
     const ax2 = (aegisGuard && !AEGIS_BEAT.active) ? AEGIS_GUARD_X : AEGIS_BEAT.x;
-    const ay2 = (aegisGuard && !AEGIS_BEAT.active) ? 440 : AEGIS_BEAT.y;
+    const ay2 = (aegisGuard && !AEGIS_BEAT.active) ? AEGIS_GUARD_Y : AEGIS_BEAT.y;
     let aPose = "aegisGuard", aFlip = false;
     if (AEGIS_BEAT.active){
       if (AEGIS_BEAT.phase === 0){ aPose = AEGIS_BEAT.slashed ? "aegisSlash" : "aegisDrop"; aFlip = true; }
@@ -4188,7 +4826,7 @@ function drawWorld(){
     drawSprite(IMG.aegis, AEGIS_FRAMES[aPose], ax2, ay2, AEGIS_SCALE, aFlip, 1, false);
   }
   /* player — the defeat burst pose plays before the respawn */
-  if (P.dead && P.deadT < 0.55){
+  if (P.dead && P.deadT < 0.55 && !GRAYBOX){
     const pd = poseData("defeat");
     drawSprite(pd.img, pd.f, P.x, P.y, pd.scale, P.face < 0, Math.max(0, 1 - P.deadT * 1.4), false);
   }
@@ -4197,7 +4835,8 @@ function drawWorld(){
     if (!blink){
       const pose = currentPoseName();
       const pd = poseData(pose);
-      drawSprite(pd.img, pd.f, P.x, P.y, pd.scale, poseFlip(pose), 1, P.hurtT > 0.2);
+      if (GRAYBOX) drawGrayPlayer();
+      else drawSprite(pd.img, pd.f, P.x, P.y, pd.scale, poseFlip(pose), 1, P.hurtT > 0.2);
       /* standalone trail FX sprites + impact bursts (sword atlas) */
       for (const fx of swordFx){
         const ff = SWORD_FRAMES[fx.f];
@@ -4478,9 +5117,10 @@ function drawHUD(){
 function render(){
   drawBackground();
   drawWorld();
-  drawForeground();
+  if (!GRAYBOX) drawForeground();
   applyBloom();
   drawScreenFx();
+  if (mode === "playing" && rainLevel > 0.02) drawRain();
   if (mode !== "title") drawHUD();
   /* before the beacon relights, the station sits darker; the relight
      itself flashes through once */
@@ -4505,7 +5145,9 @@ function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
 function camBoundsX(){
   /* inside the boss arena, keep the camera within the arena walls (no void on either side) */
   if (P.x >= ARENA_X0 - 40) return [ARENA_X0, ARENA_X1 + 40 - VW];
-  return [0, 6300 - VW];   /* stage proper ends at the x=6270 wall */
+  /* foreman arena: a locked room, one screen wide */
+  if (P.y > 1000 && P.x >= 15060 && P.x <= 16140) return [15100, 15140];
+  return [0, WORLD_W - VW];
 }
 function camSnap(){
   const bx = camBoundsX();
@@ -4670,6 +5312,10 @@ function frame(now){
       updateBoss(dt);
       updateProjectiles(dt);
       updateFx(dt);
+      /* rain: level eases toward the zone the player stands in */
+      const rainWant = rainAt(P.x, P.y);
+      rainLevel += (rainWant - rainLevel) * Math.min(1, dt * 1.6);
+      rainAmbience(rainLevel);
       /* section tracking: banner + objective follow the chapter's beats */
       const si = sectionIndex();
       if (si !== STORY.section){
