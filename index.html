@@ -1178,6 +1178,12 @@ const CHIP_DEFS = [
   { id:"blade", spr:"chipblade", x:5205, y:224 },          /* high climb platform */
   { id:"pendant", spr:"chippendant", x:3435, y:318 }       /* drone-airspace platform */
 ];
+/* toast text naming the upgrade each chip grants, shown on pickup */
+const CHIP_UPGRADE_NAMES = {
+  boots:"BOOTS CHIP — DOUBLE AIR DASH",
+  blade:"BLADE CHIP — EXTENDED REACH",
+  pendant:"PENDANT CHIP — FASTER CHARGE"
+};
 const MYSTERY_POS = { x:2965, y:296 };
 /* run-scoped collection state: survives deaths, resets on a fresh stage start */
 const runState = { shards:0, data:0, maxHpBonus:0, heartClaimed:false, chipsClaimed:{}, capsuleUsed:false };
@@ -1307,7 +1313,7 @@ const P = {};
 function resetPlayer(x, y){
   P.x = x; P.y = y; P.vx = 0; P.vy = 0; P.face = 1;
   P.hp = 16; P.grounded = true; P.coyote = 0; P.jumpBuf = 0;
-  P.dashT = 0; P.dashCd = 0; P.airDashed = false; P.dashDir = 1;
+  P.dashT = 0; P.dashCd = 0; P.airDashCount = 0; P.dashDir = 1;
   P.wallDir = 0; P.wallJumpT = 0; P.slashT = 0; P.slashId = 0; P.slashHit = null;
   P.shootPoseT = 0; P.bracedT = 0; P.lastShotBig = false; P.chargeT = 0; P.chargePinged = false;
   P.hurtT = 0; P.invulnT = 0; P.landT = 0; P.dead = false; P.deadT = 0;
@@ -1554,6 +1560,8 @@ function pitFall(){
 
 /* ---------------- player update ---------------- */
 const RUN_MAX = 255, DASH_SPD = 580;
+/* boots chip: one extra air dash per jump (base kit allows a single air dash) */
+function MAX_AIR_DASHES(){ return runState.chipsClaimed.boots ? 2 : 1; }
 function updatePlayer(dt){
   if (P.dead){
     P.deadT += dt;
@@ -1574,7 +1582,7 @@ function updatePlayer(dt){
   P.shootPoseT -= dt; P.shotCd -= dt; P.wallJumpT -= dt; P.bracedT -= dt;
   P.dashStartT -= dt; P.wallJumpPoseT -= dt; P.landHardT -= dt;
   if (pressed.jump){ P.jumpBuf = 0.13; pressed.jump = false; }
-  if (P.grounded){ P.coyote = 0.1; P.airDashed = false; P.spinUsed = false; P.wallChain = 0; }
+  if (P.grounded){ P.coyote = 0.1; P.airDashCount = 0; P.spinUsed = false; P.wallChain = 0; }
 
   const inputDir = (IN.right ? 1 : 0) - (IN.left ? 1 : 0);
   if (inputDir !== 0 && P.wallJumpT <= 0 && P.hurtT <= 0) P.face = inputDir;
@@ -1600,11 +1608,11 @@ function updatePlayer(dt){
       SFX.dash();
       spawnSpart("fxrundust", P.x - P.face * 18, P.y - 4, -P.face * 26, -6, 0.34, 52, 0, 0);
     }
-    else if (P.dashCd <= 0 && P.dashT <= 0 && (P.grounded || !P.airDashed)){
+    else if (P.dashCd <= 0 && P.dashT <= 0 && (P.grounded || P.airDashCount < MAX_AIR_DASHES())){
       P.dashBuf = 0;
       P.dashT = 0.16; P.dashCd = 0.26; P.dashDir = P.face;
       P.dashStartT = P.grounded ? 0.08 : 0;   /* coiled startup pose, ground dashes only */
-      if (!P.grounded) P.airDashed = true;
+      if (!P.grounded) P.airDashCount++;
       P.vy = 0; SFX.dash();
     }
   }
@@ -1768,7 +1776,8 @@ function updatePlayer(dt){
 
   /* --- charge shot --- */
   if (IN.shot && P.shotCd <= 0 && !P.beamHeld){
-    P.chargeT += dt;
+    /* pendant chip: charge fills ~25% faster (timer runs faster, full-charge threshold unchanged) */
+    P.chargeT += dt * (runState.chipsClaimed.pendant ? 1.25 : 1);
     if (P.chargeT > 0.12 && P.chargeT < 0.2) chargeLoopStart();
     if (P.chargeT >= 1.1 && !P.chargePinged){ P.chargePinged = true; SFX.chargeReady(); humStart(); }
   }
@@ -1816,7 +1825,7 @@ function updatePlayer(dt){
   }
   /* bounce pad: launches him up the shaft toward the heart ledge */
   if (!P.grounded && P.vy > 60 && P.bounceCd <= 0 && Math.abs(P.x - BOUNCE_PAD.x) < 36 && P.y > BOUNCE_PAD.y - 16 && P.y < BOUNCE_PAD.y + 14){
-    P.vy = -1090; P.bounceCd = 0.4; P.airDashed = false; P.spinUsed = false;
+    P.vy = -1090; P.bounceCd = 0.4; P.airDashCount = 0; P.spinUsed = false;
     SFX.jump(); spawnSpart("fxring", P.x, BOUNCE_PAD.y - 8, 0, 0, 0.3, 70, 0, 0);
     toast("BOUNCE PAD", 0.7);
   }
@@ -1826,7 +1835,7 @@ function updatePlayer(dt){
     if (fallSpeed > 640){ shakeT = Math.max(shakeT, 0.1); kick(0, 2.5); }
     if (fallSpeed > 640){ P.landHardT = 0.12; spawnParticles(P.x, P.y, 8, ["#8fb8d8", "#ffffff"], 95, 0.32, 60); spawnSpart("fxlanddust", P.x, P.y - 2, 0, 0, 0.32, 76, 0, 0); }
     else if (fallSpeed > 520){ P.landT = 0.1; spawnParticles(P.x, P.y, 6, ["#8fb8d8"], 80, 0.3, 60); spawnSpart("fxlanddust", P.x, P.y - 2, 0, 0, 0.26, 56, 0, 0); }
-    P.airDashed = false;
+    P.airDashCount = 0;
   }
   /* run dust at speed */
   if (P.grounded && Math.abs(P.vx) > 170 && Math.random() < 0.22)
@@ -1925,7 +1934,7 @@ function updatePlayer(dt){
         spawnHealFx(pk.x, py);
       } else if (kind === "chip"){
         runState.chipsClaimed[pk.chipId] = true; runState.data++;
-        toast("DATA CHIP RECOVERED — " + runState.data + "/3", 1.6);
+        toast((CHIP_UPGRADE_NAMES[pk.chipId] || "DATA CHIP") + " — " + runState.data + "/3", 1.8);
         spawnParticles(pk.x, py, 10, ["#ffd76a", "#ffffff"], 100, 0.4, -60);
       } else if (kind === "mystery"){
         if (Math.random() < 0.5){ P.hp = Math.min(P.maxHp, P.hp + 4); toast("MYSTERY ORB — +4 HP", 1.2); spawnHealFx(pk.x, py); }
@@ -2204,6 +2213,11 @@ function slashHits(){
   else if (k === "wall"){ fwd(2, 74); hy0 = P.y - 70; hy1 = P.y - 4; }
   else if (k === "combo2"){ fwd(0, 80); hy0 = P.y - 70; hy1 = P.y - 2; }
   else { fwd(6, 74); hy0 = P.y - 66; hy1 = P.y - 2; }   /* combo1 / run / air */
+  /* blade chip: every slash hitbox grows ~20%, expanded evenly from its own center */
+  if (runState.chipsClaimed.blade){
+    const padX = (hx1 - hx0) * 0.1, padY = (hy1 - hy0) * 0.1;
+    hx0 -= padX; hx1 += padX; hy0 -= padY; hy1 += padY;
+  }
   const test = (ex, ey, ew, eh) => ex + ew > hx0 && ex < hx1 && ey + eh > hy0 && ey < hy1;
   for (const e of enemies){
     if (e.dead || P.slashHit.has(e)) continue;
@@ -4103,6 +4117,22 @@ function drawHUD(){
   if (P.shield){
     ctx.fillStyle = "#7df3ff";
     ctx.fillText("SHIELD", 44, 94);
+  }
+  /* chip upgrade icons — small row under the shard counter, one per chip claimed */
+  const claimedChips = CHIP_DEFS.filter((c) => runState.chipsClaimed[c.id]);
+  if (claimedChips.length && IMG.items){
+    const chipY = P.shield ? 102 : 86, chipH = 16;
+    let cx = 44;
+    for (const c of claimedChips){
+      const f = ITEM_FRAMES[c.spr];
+      if (!f) continue;
+      const sc = chipH / f.h;
+      ctx.save();
+      ctx.shadowColor = "#35e0ff"; ctx.shadowBlur = 5;
+      ctx.drawImage(IMG.items, f.x, f.y, f.w, f.h, cx, chipY, f.w * sc, f.h * sc);
+      ctx.restore();
+      cx += f.w * sc + 5;
+    }
   }
   /* charge pips */
   if (P.chargeT > 0.05){
