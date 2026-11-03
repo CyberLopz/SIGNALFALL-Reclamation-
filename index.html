@@ -1183,6 +1183,41 @@ const ENEMIES_DEF = [
 ];
 const GATE_X = 5740, BOSS_TRIGGER_X = 5760;
 const ARENA_X0 = 7000, ARENA_X1 = 9000, ARENA_ENTER_X = 7160;
+/* ---------------- per-section visual identity ----------------
+   One bucket per SECTIONS entry, keyed off world x. Shared by drawPlatform()
+   (seam/under-glow/gradient) and drawBackground() (gradient/motes/wisps), so a
+   platform and the sky behind it always agree on the section's mood. Every
+   color stays inside the game's cyan/violet family — warmth/coolness and
+   saturation shift, hue never strays into the hazard-strip gold/black or the
+   HP-danger red reserved elsewhere. */
+function sectionAtX(cx){
+  if (cx >= ARENA_X0) return "arena";
+  if (cx >= 3950) return "approach";
+  if (cx >= 2620) return "yard";
+  if (cx >= 1850) return "shaft";
+  if (cx >= 1050) return "corridor";
+  return "bay";
+}
+const SECTION_STYLE = {
+  /* AWAKENING BAY — pale, half-lit cyan-teal: still waking up */
+  bay:      { pTop:"#1b2550", pMid:"#131c3e", seam:"#6fe0e0", under:"150,220,220",
+              bg0:"#05081c", bg1:"#0a1030", bg2:"#070a1c", mote:"120,210,220", wisp:"90,210,220" },
+  /* MAINTENANCE CORRIDOR — warm and dim */
+  corridor: { pTop:"#2a2140", pMid:"#1d1730", seam:"#ffb870", under:"255,170,90",
+              bg0:"#160f20", bg1:"#241832", bg2:"#120b1c", mote:"255,190,130", wisp:"255,170,100" },
+  /* THE SHAFT — cold and vertical */
+  shaft:    { pTop:"#171b38", pMid:"#10142c", seam:"#9a7bff", under:"154,107,255",
+              bg0:"#07081e", bg1:"#0c0a2c", bg2:"#05051a", wisp:"170,140,255", mote:"170,150,255" },
+  /* FOREMAN'S YARD — industrial amber, harsher shadow */
+  yard:     { pTop:"#302313", pMid:"#201604", seam:"#ffaa3c", under:"255,150,40",
+              bg0:"#180f07", bg1:"#241404", bg2:"#150b05", mote:"255,175,90", wisp:"255,150,70" },
+  /* RELAY CORE APPROACH — bright cyan */
+  approach: { pTop:"#1e2962", pMid:"#141c42", seam:"#35e0ff", under:"53,224,255",
+              bg0:"#051527", bg1:"#0a223f", bg2:"#061427", mote:"100,235,255", wisp:"80,225,255" },
+  /* WRAITH CHAMBER — deep violet arena */
+  arena:    { pTop:"#241238", pMid:"#170a26", seam:"#c08bff", under:"154,80,255",
+              bg0:"#0e0620", bg1:"#180a30", bg2:"#0a0418", mote:"190,140,255", wisp:"170,110,255" }
+};
 const BOSS_SPAWN_X = 8400, ARENA_FLOOR = 620;
 /* --- MEGA EXPANSION mechanics (visual sprites live in MECH_FRAMES) --- */
 const LADDER = { x:2036, top:150, bottom:566 };            /* shaft left wall, hugs the slab's inner face */
@@ -1233,87 +1268,151 @@ function sectionIndex(){
 }
 let crumbles = [], wrecks = [], waves = [], sparts = [];
 /* set dressing — visual only, no collision. y = bottom (sits on a floor/platform top).
-   back:true renders behind platforms; fx: flicker (sconce), spark (periodic spark bursts) */
-const DECOR = [
-  { p:"banner", x:500, y:302, h:172, back:true }, { p:"banner", x:1560, y:292, h:172, back:true },
-  { p:"glyphpanel", x:1150, y:468, h:212, back:true }, { p:"sconce", x:660, y:336, h:118, back:true, fx:"flicker" },
-  { p:"pillar", x:2150, y:578, h:302, back:true }, { p:"glyphpanel", x:2405, y:148, h:188, back:true },
-  { p:"pillar", x:3350, y:438, h:282, back:true }, { p:"banner", x:3720, y:332, h:168, back:true },
-  { p:"glyphpanel", x:4430, y:338, h:198, back:true }, { p:"pillar", x:5920, y:438, h:292, back:true },
-  { p:"banner", x:7620, y:472, h:192, back:true }, { p:"glyphpanel", x:8790, y:462, h:212, back:true },
-  { p:"pillar", x:7160, y:618, h:300, back:true }, { p:"sconce", x:8890, y:486, h:118, back:true, fx:"flicker" },
-  { p:"terminal", x:185, y:470, h:64 }, { p:"plants", x:455, y:470, h:44 },
-  { p:"pod", x:905, y:470, h:52 }, { p:"debris", x:1620, y:470, h:54, fx:"spark" },
-  { p:"spool", x:1765, y:470, h:48 }, { p:"crystal", x:2665, y:238, h:64 },
-  { p:"crystals", x:2965, y:328, h:48 }, { p:"debris", x:3180, y:440, h:50, fx:"spark" },
-  { p:"terminal", x:3660, y:440, h:62 }, { p:"pod", x:3865, y:440, h:50 },
-  { p:"crystals", x:4595, y:294, h:42 }, { p:"bench", x:5050, y:316, h:40 },
-  { p:"signpost", x:5690, y:440, h:76 }, { p:"crystal", x:6180, y:440, h:58 },
-  { p:"dais", x:8000, y:620, h:92 }, { p:"crystal", x:8000, y:528, h:112 },
-  { p:"terminal", x:7330, y:620, h:64 }, { p:"plants", x:7560, y:620, h:46 },
-  { p:"pod", x:8660, y:620, h:54 }, { p:"debris", x:8450, y:620, h:52, fx:"spark" },
-  /* --- p3 environment sheet: density pass (src:"p2", visual only) --- */
-  { p:"cables", src:"p2", x:300, y:336, h:252, back:true, fx:"sparks" },
-  { p:"banner2", src:"p2", x:820, y:470, h:198, back:true },
+   back:true renders behind platforms; fx: flicker (sconce), spark (periodic spark bursts).
+   Grouped per SECTIONS entry (see x-ranges in sectionAtX) so each area can be
+   edited on its own; DECOR below is just the concatenation, same consumer as
+   before. Each group is composed as a few clustered small scenes with gaps
+   between them, background (back:true) behind the walkway and a handful of
+   foreground accents in front — not an even sprinkle across the whole span. */
+
+/* --- AWAKENING BAY (x < 1050): pale waking light. Three scenes with gaps:
+       wake-up machinery at the spawn, a small lit garden nook, then the
+       laser-gate casualty just before the corridor. (Removed the old
+       crates@1012/floorgrate@770/fountain@480 — they only added more glow
+       sources on top of neighbours that already had one, without adding a
+       new idea.) --- */
+const DECOR_BAY = [
+  { p:"gearwall", src:"p4", x:150, y:470, h:150, back:true },
+  { p:"terminal", x:185, y:470, h:64 },
   { p:"crates", src:"p2", x:250, y:470, h:74 },
+  { p:"cables", src:"p2", x:300, y:336, h:252, back:true, fx:"sparks" },
+  { p:"banner", x:500, y:302, h:172, back:true },
+  { p:"plants", x:455, y:470, h:44 },
   { p:"steamvent", src:"p2", x:620, y:470, h:104, fx:"steam" },
-  { p:"floorgrate", src:"p2", x:770, y:470, h:40 },
+  { p:"sconce", x:660, y:336, h:118, back:true, fx:"flicker" },
+  { p:"banner2", src:"p2", x:820, y:470, h:198, back:true },
   { p:"robotwreck", src:"p2", x:880, y:470, h:56 },
-  { p:"crates", src:"p2", x:1012, y:470, h:58 },
+  { p:"pod", x:905, y:470, h:52 }
+];
+
+/* --- MAINTENANCE CORRIDOR (1050-1850): warm and dim. A maintenance-desk
+       cluster, then the pressure switch + shutter left clear as the
+       obvious objective. (Removed debris@1620/rubble@1705 — both sat
+       within ~20px of the switch/shutter and were burying the one thing
+       the player actually needs to read here.) --- */
+const DECOR_CORRIDOR = [
+  { p:"flamecage", src:"p4", x:1050, y:330, h:130, back:true },
   { p:"holosign", src:"p2", x:1145, y:470, h:118, back:true, fx:"flicker" },
+  { p:"glyphpanel", x:1150, y:468, h:212, back:true },
+  { p:"monitor", src:"p4", x:1240, y:470, h:56 },
   { p:"gpillar", src:"p2", x:1335, y:470, h:212, back:true },
+  { p:"hatch", src:"p4", x:1450, y:470, h:44 },
   { p:"brokenpod", src:"p2", x:1470, y:470, h:62 },
-  { p:"rubble", src:"p2", x:1705, y:470, h:48 },
-  { p:"conduit", src:"p2", x:1812, y:470, h:118, stack:3, back:true, fx:"pulse" },
+  { p:"banner", x:1560, y:292, h:172, back:true },
+  { p:"spool", x:1765, y:470, h:48 },
+  { p:"conduit", src:"p2", x:1812, y:470, h:118, stack:3, back:true, fx:"pulse" }
+];
+
+/* --- THE SHAFT (1850-2620): cold and vertical. The hoist machinery stays
+       by the ladder; the heart ledge itself is kept clear so the pillar
+       monument (not a crate's dangling chain) is what marks the Signal
+       Heart. (hangcrate nudged 2130->2050, cables 2200->2250 — both used
+       to sit close enough to the heart pickup to visually crowd it.) --- */
+const DECOR_SHAFT = [
+  { p:"pipesgauge", src:"p4", x:1905, y:580, h:120, back:true },
   { p:"steamvent", src:"p2", x:2060, y:580, h:96, fx:"steam" },
-  { p:"cables", src:"p2", x:2200, y:424, h:262, back:true, fx:"sparks" },
-  { p:"gpillar", src:"p2", x:2385, y:150, h:168, back:true },
+  { p:"hangcrate", src:"p4", x:2050, y:296, h:118, back:true },
+  { p:"pillar", x:2150, y:578, h:302, back:true },
+  { p:"cables", src:"p2", x:2250, y:424, h:262, back:true, fx:"sparks" },
+  { p:"glyphpanel", x:2405, y:148, h:188, back:true },
+  { p:"gpillar", src:"p2", x:2385, y:150, h:168, back:true }
+];
+
+/* --- FOREMAN'S YARD (2620-3950): industrial amber. The pillar that used
+       to stand directly in front of Foreman-9 is now an entrance landmark
+       instead, and the obelisk moved to the far (exit) end — the brute's
+       actual fight footprint (~3300-3700) is left to the combat itself.
+       crystals@2965 is kept exactly where it is: it already doubles as a
+       "something's here" marker for the mystery orb at the same spot. --- */
+const DECOR_YARD = [
+  { p:"crystal", x:2665, y:238, h:64 },
+  { p:"pillar", x:2700, y:438, h:282, back:true },
   { p:"banner2", src:"p2", x:2760, y:330, h:176, back:true },
-  { p:"relay", src:"p2", x:3520, y:440, h:66 },
-  { p:"dronepile", src:"p2", x:3305, y:440, h:54 },
-  { p:"pipes", src:"p2", x:3878, y:440, h:44 },
+  { p:"crystals", x:2965, y:328, h:48 },
   { p:"banner2", src:"p2", x:3150, y:440, h:188, back:true },
+  { p:"debris", x:3180, y:440, h:50, fx:"spark" },
+  { p:"dronepile", src:"p2", x:3305, y:440, h:54 },
+  { p:"relay", src:"p2", x:3520, y:440, h:66 },
+  { p:"banner", x:3720, y:332, h:168, back:true },
   { p:"conduit", src:"p2", x:3705, y:440, h:116, stack:3, back:true, fx:"pulse" },
+  { p:"terminal", x:3660, y:440, h:62 },
+  { p:"pod", x:3865, y:440, h:50 },
+  { p:"pipes", src:"p2", x:3878, y:440, h:44 },
+  { p:"obelisk", src:"p4", x:3870, y:440, h:96 }
+];
+
+/* --- RELAY CORE APPROACH (3950-6900): bright cyan, the longest stretch.
+       Already tested well around the capsule gate, so only a light touch:
+       crystals@4595 removed (it was 55px from goldcrystal AND steamvent,
+       three glow sources in one small window) and one small marker added
+       near the blade chip's climb platform, which previously had nothing
+       nearby flagging it. --- */
+const DECOR_APPROACH = [
   { p:"pipes", src:"p2", x:4195, y:382, h:40 },
+  { p:"glyphpanel", x:4430, y:338, h:198, back:true },
+  { p:"goldcrystal", src:"p4", x:4650, y:296, h:64 },
   { p:"steamvent", src:"p2", x:4615, y:296, h:68, fx:"steam" },
-  { p:"crystal2", src:"p2", x:5035, y:318, h:76 },
   { p:"cables", src:"p2", x:4760, y:300, h:230, back:true, fx:"sparks" },
+  { p:"crystal2", src:"p2", x:5035, y:318, h:76 },
+  { p:"bench", x:5050, y:316, h:40 },
+  { p:"crystal", x:5150, y:210, h:40 },               /* marks the blade chip's climb platform */
+  { p:"fanvent", src:"p4", x:5355, y:400, h:80 },
+  { p:"floorgrate", src:"p2", x:5650, y:440, h:38 },
+  { p:"signpost", x:5690, y:440, h:76 },
   { p:"crates", src:"p2", x:5725, y:440, h:62 },
   { p:"cables", src:"p2", x:5860, y:384, h:238, back:true, fx:"sparks" },
+  { p:"pillar", x:5920, y:438, h:292, back:true },
   { p:"holosign", src:"p2", x:6055, y:440, h:110, fx:"flicker" },
-  { p:"gpillar", src:"p2", x:6245, y:440, h:228, back:true },
-  { p:"floorgrate", src:"p2", x:5650, y:440, h:38 },
-  /* --- boss arena dressing: pillars/conduits at the edges, banner pair
-         flanking the Wraith's entrance, rubble in the corners --- */
+  { p:"portalring", src:"p4", x:6080, y:440, h:90 },
+  { p:"crystal", x:6180, y:440, h:58 },
+  { p:"gpillar", src:"p2", x:6245, y:440, h:228, back:true }
+];
+
+/* --- WRAITH CHAMBER / boss arena (x >= 7000): deep violet. Already tested
+       well (dais + crystal spire reads as the chamber's centrepiece, the
+       statue as Wraith foreshadowing) — reorganized only, not re-laid-out. --- */
+const DECOR_ARENA = [
+  { p:"pillar", x:7160, y:618, h:300, back:true },
   { p:"gpillar", src:"p2", x:7135, y:620, h:298, back:true },
-  { p:"conduit", src:"p2", x:8895, y:620, h:124, stack:3, back:true, fx:"pulse" },
-  { p:"banner2", src:"p2", x:8265, y:620, h:208, back:true },
-  { p:"banner2", src:"p2", x:8555, y:620, h:208, back:true },
-  { p:"cables", src:"p2", x:7600, y:436, h:258, back:true, fx:"sparks" },
+  { p:"statue", src:"p4", x:7180, y:620, h:150, back:true },
   { p:"rubble", src:"p2", x:7215, y:620, h:52 },
-  { p:"rubble", src:"p2", x:8765, y:620, h:52 },
+  { p:"banner", x:7620, y:472, h:192, back:true },
+  { p:"terminal", x:7330, y:620, h:64 },
+  { p:"plants", x:7560, y:620, h:46 },
   { p:"robotwreck", src:"p2", x:7485, y:620, h:58 },
   { p:"crystal2", src:"p2", x:7685, y:620, h:88 },
-  { p:"steamvent", src:"p2", x:8125, y:620, h:84, fx:"steam" },
-  { p:"brokenpod", src:"p2", x:8525, y:620, h:60 },
-  { p:"relay", src:"p2", x:8695, y:620, h:64 },
+  { p:"cables", src:"p2", x:7600, y:436, h:258, back:true, fx:"sparks" },
   { p:"floorgrate", src:"p2", x:7900, y:620, h:42 },
-  /* --- environment sheet 3 (src:"p4"): gearworks, cages, vents, monuments --- */
-  { p:"gearwall", src:"p4", x:150, y:470, h:150, back:true },
-  { p:"flamecage", src:"p4", x:1050, y:330, h:130, back:true },
-  { p:"fountain", src:"p4", x:480, y:470, h:60 },
-  { p:"monitor", src:"p4", x:1240, y:470, h:56 },
-  { p:"hatch", src:"p4", x:1450, y:470, h:44 },
-  { p:"pipesgauge", src:"p4", x:1905, y:580, h:120, back:true },
-  { p:"hangcrate", src:"p4", x:2130, y:296, h:118, back:true },
   { p:"waterfall", src:"p4", x:7950, y:620, h:205, back:true },
-  { p:"obelisk", src:"p4", x:3400, y:440, h:96 },
-  { p:"goldcrystal", src:"p4", x:4650, y:296, h:64 },
-  { p:"fanvent", src:"p4", x:5355, y:400, h:80 },
-  { p:"statue", src:"p4", x:7180, y:620, h:150, back:true },
+  { p:"dais", x:8000, y:620, h:92 },
+  { p:"crystal", x:8000, y:528, h:112 },
   { p:"energybanner", src:"p4", x:8000, y:620, h:170, back:true },
   { p:"hoverring", src:"p4", x:8000, y:372, h:40, back:true },
-  { p:"portalring", src:"p4", x:6080, y:440, h:90 }
+  { p:"banner2", src:"p2", x:8265, y:620, h:208, back:true },
+  { p:"steamvent", src:"p2", x:8125, y:620, h:84, fx:"steam" },
+  { p:"banner2", src:"p2", x:8555, y:620, h:208, back:true },
+  { p:"brokenpod", src:"p2", x:8525, y:620, h:60 },
+  { p:"debris", x:8450, y:620, h:52, fx:"spark" },
+  { p:"pod", x:8660, y:620, h:54 },
+  { p:"relay", src:"p2", x:8695, y:620, h:64 },
+  { p:"rubble", src:"p2", x:8765, y:620, h:52 },
+  { p:"glyphpanel", x:8790, y:462, h:212, back:true },
+  { p:"conduit", src:"p2", x:8895, y:620, h:124, stack:3, back:true, fx:"pulse" },
+  { p:"sconce", x:8890, y:486, h:118, back:true, fx:"flicker" }
+];
+
+const DECOR = [
+  ...DECOR_BAY, ...DECOR_CORRIDOR, ...DECOR_SHAFT, ...DECOR_YARD, ...DECOR_APPROACH, ...DECOR_ARENA
 ];
 
 /* ---------------- game state ---------------- */
@@ -3117,10 +3216,27 @@ function drawSprite(img, f, cx, bottomY, scale, flip, alpha, bright, tint){
   ctx.drawImage(img, f.x, f.y, f.w, f.h, -f.ax * scale, -h, w, h);
   ctx.restore();
 }
+/* per-section gradients, built once and reused — a CanvasGradient tied to
+   this ctx is cheap to replay but not cheap to rebuild every frame, and the
+   section only changes when the camera crosses a boundary */
+const bgSectionGradCache = {};
+function bgSectionGrad(sec, st){
+  let g = bgSectionGradCache[sec];
+  if (g) return g;
+  /* the mood tint lives directly in these three stops (no separate wash
+     layer on top) — one gradient fillRect, same cost the original single
+     fixed-colour background always paid */
+  g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, st.bg0); g.addColorStop(0.6, st.bg1); g.addColorStop(1, st.bg2);
+  bgSectionGradCache[sec] = g;
+  return g;
+}
 function drawBackground(){
-  const g = ctx.createLinearGradient(0, 0, 0, VH);
-  g.addColorStop(0, "#05061a"); g.addColorStop(0.6, "#0a0c26"); g.addColorStop(1, "#070818");
-  ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+  /* section mood: picked off the camera's current center, same buckets
+     drawPlatform() uses, so the sky and the platforms always agree */
+  const sec = sectionAtX(camX + VW / 2);
+  const st = SECTION_STYLE[sec];
+  ctx.fillStyle = bgSectionGrad(sec, st); ctx.fillRect(0, 0, VW, VH);
   if (IMG.bg){
     /* far layer, parallax 0.4 */
     let sc = 660 / IMG.bg.naturalHeight, w = IMG.bg.naturalWidth * sc;
@@ -3136,14 +3252,14 @@ function drawBackground(){
     }
   }
   /* drifting signal motes */
-  ctx.fillStyle = "rgba(120,220,255,0.35)";
+  ctx.fillStyle = "rgba(" + st.mote + ",0.35)";
   for (let i = 0; i < 26; i++){
     const mx = ((i * 197.3 - camX * 0.8 + stageTime * (6 + (i % 5) * 3)) % (VW + 40)) - 20;
     const my = (i * 89.7 + Math.sin(stageTime * 0.7 + i) * 16) % VH;
     ctx.fillRect(mx, my, 2, 2);
   }
   /* drifting data wisps */
-  ctx.strokeStyle = "rgba(90,220,255,0.16)"; ctx.lineWidth = 2; ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(" + st.wisp + ",0.16)"; ctx.lineWidth = 2; ctx.lineCap = "round";
   for (let i = 0; i < 5; i++){
     const wx = ((i * 331.7 - camX * 0.8 + stageTime * (14 + i * 4)) % (VW + 160)) - 80;
     const wy = 70 + (i * 97.3) % 380 + Math.sin(stageTime * 0.9 + i * 2.1) * 14;
@@ -3153,12 +3269,7 @@ function drawBackground(){
   }
 }
 function sectionOf(s){
-  const cx = s.x + s.w / 2;
-  if (cx >= ARENA_X0) return "arena";
-  if (cx < 1850) return "corridor";
-  if (cx < 2620) return "shaft";
-  if (cx >= 3900) return "climb";
-  return "corridor";
+  return sectionAtX(s.x + s.w / 2);
 }
 function drawPlatform(s){
   const x = s.x, y = s.y, w = s.w, h = s.h;
@@ -3176,9 +3287,9 @@ function drawPlatform(s){
     }
   }
   const sec = sectionOf(s);
+  const st = SECTION_STYLE[sec];
   const g = ctx.createLinearGradient(0, y, 0, y + Math.min(h, 110));
-  if (sec === "shaft"){ g.addColorStop(0, "#171b38"); g.addColorStop(0.22, "#10142c"); }
-  else { g.addColorStop(0, "#1e2450"); g.addColorStop(0.22, "#141936"); }
+  g.addColorStop(0, st.pTop); g.addColorStop(0.22, st.pMid);
   g.addColorStop(1, "#0a0d20");
   ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
   /* per-platform variation so repeated slabs stop reading as copy-paste:
@@ -3199,8 +3310,10 @@ function drawPlatform(s){
     const cx0 = x + 12 + ((phash >> (i * 7 + 2)) % Math.max(20, w - 30));
     ctx.fillRect(cx0, y, 3 + (i % 3), 2);
   }
-  /* panel seams */
-  const step = sec === "climb" ? 74 : 92;
+  /* panel seams — each section gets its own rhythm: the approach's machinery
+     runs tighter (74), the yard's riveted plating a little tighter than the
+     plain corridors/bay (80 vs 92), everything else the original spacing */
+  const step = sec === "approach" ? 74 : (sec === "yard" ? 80 : 92);
   ctx.fillStyle = "rgba(0,0,0,0.4)";
   for (let px = x + step; px < x + w - 6; px += step) ctx.fillRect(px, y + 3, 2, Math.min(h - 5, 118));
   if (h > 40) ctx.fillRect(x, y + 34, w, 2);
@@ -3224,24 +3337,32 @@ function drawPlatform(s){
       ctx.restore();
     }
   }
-  /* glowing cyan seam line */
-  ctx.fillStyle = "#35e0ff"; ctx.globalAlpha = 0.9; ctx.fillRect(x, y + 1, w, 2); ctx.globalAlpha = 1;
-  /* violet under-glow */
+  /* glowing seam line — section accent colour */
+  ctx.fillStyle = st.seam; ctx.globalAlpha = 0.9; ctx.fillRect(x, y + 1, w, 2); ctx.globalAlpha = 1;
+  /* under-glow — section accent colour */
   const ug = ctx.createLinearGradient(0, y + 10, 0, y + 30);
-  ug.addColorStop(0, "rgba(154,107,255,0.28)"); ug.addColorStop(1, "rgba(154,107,255,0)");
+  ug.addColorStop(0, "rgba(" + st.under + ",0.28)"); ug.addColorStop(1, "rgba(" + st.under + ",0)");
   ctx.fillStyle = ug; ctx.fillRect(x, y + 10, w, Math.min(20, Math.max(0, h - 10)));
   if (sec === "shaft"){
     /* violet glyph inlays */
-    ctx.strokeStyle = "rgba(154,107,255,0.5)"; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(" + st.under + ",0.5)"; ctx.lineWidth = 1.5;
     for (let px = x + 34; px < x + w - 20; px += 118){
       const gy = y + Math.min(h - 16, 54);
       ctx.beginPath();
       ctx.moveTo(px, gy - 7); ctx.lineTo(px + 7, gy); ctx.lineTo(px, gy + 7); ctx.lineTo(px - 7, gy); ctx.closePath(); ctx.stroke();
       ctx.beginPath(); ctx.arc(px, gy, 2.2, 0, 7); ctx.stroke();
     }
+  } else if (sec === "yard" && h > 44){
+    /* amber hazard-chevron inlays: industrial warning stencils */
+    ctx.strokeStyle = "rgba(" + st.under + ",0.45)"; ctx.lineWidth = 1.4;
+    for (let px = x + 30; px < x + w - 20; px += 96){
+      const gy = y + Math.min(h - 16, 50);
+      ctx.beginPath();
+      ctx.moveTo(px - 8, gy + 8); ctx.lineTo(px, gy - 6); ctx.lineTo(px + 8, gy + 8); ctx.stroke();
+    }
   } else if (h > 44){
     /* faint glyph inlay on some panels elsewhere + cracked panel faces */
-    const step2 = sec === "climb" ? 74 : 92;
+    const step2 = sec === "approach" ? 74 : 92;
     for (let px = x + step2, pi = 1; px < x + w - 24; px += step2, pi++){
       const cellHash = (phash >> (pi * 3)) % 6;
       if (cellHash === 0){
@@ -3261,10 +3382,10 @@ function drawPlatform(s){
   /* extra rivet row on tall faces */
   if (h > 72){
     ctx.fillStyle = "rgba(150,225,255,0.38)";
-    const step3 = sec === "climb" ? 74 : 92;
+    const step3 = sec === "approach" ? 74 : 92;
     for (let px = x + 10; px < x + w - 4; px += step3) ctx.fillRect(px, y + 52, 2, 2);
   }
-  if (sec === "climb" || sec === "arena"){
+  if (sec === "approach" || sec === "arena"){
     /* machinery backing: pipes with lit cores + hanging cable swags */
     ctx.fillStyle = "rgba(8,10,24,0.55)";
     for (let px = x + 22; px < x + w - 10; px += 46) ctx.fillRect(px, y + 8, 7, Math.max(0, Math.min(h - 14, 130)));
@@ -3331,12 +3452,28 @@ function drawDecor(d){
 }
 /* floor dressing detail: cyan trace lines running along the main floors
    (the relay trace network, checkpoint to checkpoint) + scorch marks
-   baked under turret positions and heavy combat floors */
+   baked under turret positions and heavy combat floors. Grouped per
+   section like DECOR above; same values, same rendering, just organized
+   so each area's floor dressing can be found and edited on its own. */
+const TRACE_SEGS_BAY      = [ [8, 1050, 470] ];
+const TRACE_SEGS_CORRIDOR = [ [1298, 1842, 470] ];
+const TRACE_SEGS_SHAFT    = [ ];                      /* vertical — no single floor run */
+const TRACE_SEGS_YARD     = [ [3088, 3942, 440] ];
+const TRACE_SEGS_APPROACH = [ [5568, 6262, 440] ];
+const TRACE_SEGS_ARENA    = [ [7008, 8992, 620] ];
 const TRACE_SEGS = [
-  [8, 1050, 470], [1298, 1842, 470], [3088, 3942, 440], [5568, 6262, 440], [7008, 8992, 620]
+  ...TRACE_SEGS_BAY, ...TRACE_SEGS_CORRIDOR, ...TRACE_SEGS_SHAFT,
+  ...TRACE_SEGS_YARD, ...TRACE_SEGS_APPROACH, ...TRACE_SEGS_ARENA
 ];
+const SCORCH_BAY      = [ [720, 468, 44] ];
+const SCORCH_CORRIDOR = [ [1620, 468, 40] ];
+const SCORCH_SHAFT    = [ ];
+const SCORCH_YARD     = [ [3720, 438, 46] ];
+const SCORCH_APPROACH = [ [4012, 339, 52], [5352, 195, 46] ];
+const SCORCH_ARENA    = [ [8400, 618, 60] ];
 const SCORCH = [
-  [4012, 339, 52], [5352, 195, 46], [720, 468, 44], [1620, 468, 40], [3720, 438, 46], [8400, 618, 60]
+  ...SCORCH_BAY, ...SCORCH_CORRIDOR, ...SCORCH_SHAFT,
+  ...SCORCH_YARD, ...SCORCH_APPROACH, ...SCORCH_ARENA
 ];
 function drawFloorDetails(){
   ctx.save();
