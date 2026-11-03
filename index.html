@@ -357,6 +357,31 @@ const ENEMY2_FRAMES = {
   dronedmg:{x:691,y:862,w:274,h:245,ax:147,ay:10}, crawler2:{x:973,y:862,w:405,h:241,ax:299,ay:10},
   crawler1:{x:1386,y:862,w:354,h:209,ax:217,ay:10}
 };
+/* PILOT (level-fidelity step c): the crawler redraw sheet,
+   atlas-enemies-crawler.png — the FULL gate-approved set: 8 walk frames
+   (24 fps elapsed-time loop) + 2 death poses (D1 buckle, D3 collapse;
+   the mid-beat is a code tween, no third generated frame exists).
+   Hurt is procedural (hit-flash + recoil), so there is no hurt row.
+   Every frame is normalized to the same 512x304 cell with the DOME
+   centred (ax = 256 for all frames) and feet on a shared line (per-frame
+   ay), which is what kills pose pops; death frames use a shrink-to-fit
+   scale so D3's sprawl and the smoke wisps never clip the cell.
+   Drawn footprint matches the ENEMY2 crawler it replaces: 512x304 at
+   40/304 = 67.4x40 on screen, same 52x30 hitbox (enemyBox untouched).
+   Loaded as its own job so a missing file flips CRAWLER_ATLAS_OK off and
+   drawCrawler() falls back to the ENEMY2 frames — never a boot failure. */
+const CRAWLER_WALK = [
+  { x:0,    y:0,   w:512, h:304, ax:256, ay:36 }, { x:512,  y:0,   w:512, h:304, ax:256, ay:39 },
+  { x:1024, y:0,   w:512, h:304, ax:256, ay:27 }, { x:1536, y:0,   w:512, h:304, ax:256, ay:39 },
+  { x:0,    y:304, w:512, h:304, ax:256, ay:38 }, { x:512,  y:304, w:512, h:304, ax:256, ay:38 },
+  { x:1024, y:304, w:512, h:304, ax:256, ay:39 }, { x:1536, y:304, w:512, h:304, ax:256, ay:35 }
+];
+const CRAWLER_DEATH = [
+  { x:0,   y:608, w:512, h:304, ax:256, ay:38 },
+  { x:512, y:608, w:512, h:304, ax:256, ay:38 }
+];
+let CRAWLER_ATLAS_OK = false;
+let CRAWLER_LAST_PATH = "none";   /* harness-visible: "atlas" | "fallback" | "none" */
 const WRAITH2_FRAMES = {
   w2gate:{x:4,y:4,w:298,h:398,ax:148,ay:10}, w2hexseal:{x:310,y:4,w:292,h:392,ax:145,ay:10},
   w2loot:{x:610,y:4,w:415,h:380,ax:197,ay:10}, w2orb:{x:1033,y:4,w:275,h:304,ax:134,ay:10},
@@ -577,12 +602,14 @@ async function loadAssets(){
     ["runcharge", "assets/atlas-sable-p11-runcharge.png"],
     ["aegis", "assets/atlas-aegis-p3.png"],
     ["portraits", "assets/atlas-portraits-p3.png"],
+    ["crawler", "assets/atlas-enemies-crawler.png"],
     ["bg", "assets/bg-sector7.jpg"]
   ];
   /* all atlases load in parallel; the bar tracks completions */
   let done = 0, heroOk = false, missing = 0;
-  await Promise.all(jobs.map(([key, src]) => loadOne(key, src, 7000).then((ok) => {
+  await Promise.all(jobs.map(([key, src]) => loadOne(key, src, key === "crawler" ? 2500 : 7000).then((ok) => {
     if (key === "sable") heroOk = ok;
+    if (key === "crawler"){ CRAWLER_ATLAS_OK = ok; if (!ok) console.warn("atlas-enemies-crawler.png missing - crawler falls back to the ENEMY2 frames"); }
     if (!ok) missing++;
     done++;
     fill.style.width = Math.round(done / jobs.length * 100) + "%";
@@ -1349,6 +1376,18 @@ const BOSS_SPAWN_X = 25400, ARENA_FLOOR = 620;
    stays intact behind the flag for the art phase. */
 const GRAYBOX = true;
 const GB_TINTS = ["#6b4a8f", "#54498c", "#3f4a75", "#2e3a5f", "#6e5636", "#2a5f6e", "#4a5f8f", "#7a4436", "#4f6e52", "#3a5a8f", "#5f2a4a"];   /* by section index */
+/* ---------------- PILOT: per-section art dressing (step c) ----------------
+   Sections named here render their real art while GRAYBOX stays on for
+   the rest of the stage. The gantry is the pilot; later sections opt in
+   by name as their dressing lands. All gantry ambient motion is driven
+   by stageTime (elapsed seconds), never frame counters, and every prop
+   carries its own phase so nothing pulses in sync. Performance mode
+   (gfxHigh off) strips the fog, smoke, circuit etching and lamp glows;
+   silhouettes, strips and sway stay. */
+const DRESS_SECTIONS = { gantry:true };
+function sectionDressedAt(x, y){ return !!DRESS_SECTIONS[sectionAt(x, y)]; }
+function gantryOnScreen(){ return camX + VW > 1940 && camX < 4060; }
+
 /* ladders are a LIST now (the p10 ladder-shoot system keys off
    P.onLadder + P.ladderRef): exitX is where he steps off at the top */
 const LADDERS = [
@@ -1443,7 +1482,8 @@ const SECTIONS = [
 let objective = SECTIONS[0].obj;
 const STORY = {
   section:0, dashLine:false, laserLine:false, beltLine:false, beacon:false,
-  relay:false, aegis:false, capsule:false, wraithPost:false, echoStable:false
+  relay:false, aegis:false, capsule:false, wraithPost:false, echoStable:false,
+  wraithPreSeen:false   /* SCENE_WRAITH_PRE plays on the first Wraith attempt only */
 };
 function sectionIndex(){
   return sectionIndexAt(P.x, P.y);
@@ -1658,7 +1698,7 @@ function resetStage(full){
   if (full){
     CHECKPOINTS.forEach((c) => c.active = false); respawnPoint = { x:90, y:470 }; stageTime = 0;
     STORY.section = 0; STORY.dashLine = STORY.laserLine = STORY.beltLine = STORY.beacon = false;
-    STORY.relay = STORY.aegis = STORY.capsule = STORY.wraithPost = STORY.echoStable = false;
+    STORY.relay = STORY.aegis = STORY.capsule = STORY.wraithPost = STORY.echoStable = STORY.wraithPreSeen = false;
     objective = SECTIONS[0].obj;
     aegisGuard = false; AEGIS_BEAT.active = false; AEGIS_BEAT.sw = null;
     pendingScene = null; DLG.active = false; beaconFlash = 0; bannerT = 0;
@@ -1667,7 +1707,7 @@ function resetStage(full){
 function spawnEnemy(d){
   if (d.type === "walker") return { type:"walker", x:d.x, y:groundYAt(d.x) || 470, min:d.min, max:d.max, dir:-1, hp:3, maxHp:3, state:"patrol", t:Math.random(), fireT:1 + Math.random(), flashT:0, dead:false };
   if (d.type === "drone") return { type:"drone", x:d.x, y:d.y, baseY:d.y, hp:2, maxHp:2, ph:Math.random() * 6, flashT:0, dead:false };
-  if (d.type === "crawler") return { type:"crawler", x:d.x, y:(d.y != null ? d.y : (groundYAt(d.x) || 470)), min:d.min, max:d.max, dir:1, hp:2, maxHp:2, walkPh:0, flashT:0, dead:false };
+  if (d.type === "crawler") return { type:"crawler", x:d.x, y:(d.y != null ? d.y : (groundYAt(d.x) || 470)), min:d.min, max:d.max, dir:1, hp:2, maxHp:2, walkPh:0, flashT:0, hurtT:0, hurtDir:1, dying:null, dead:false };
   if (d.type === "swooper") return { type:"swooper", x:d.x, y:d.y, homeX:d.x, homeY:d.y, hp:2, maxHp:2, state:"roost", vx:0, vy:0, t:0, flashT:0, dead:false };
   if (d.type === "shieldwalker") return { type:"shieldwalker", x:d.x, y:(d.y != null ? d.y : (groundYAt(d.x) || 440)), min:d.min, max:d.max, face:-1, hp:6, maxHp:6, walkPh:0, blockFxT:0, turnT:0, flashT:0, dead:false, beat:!!d.beat };
   if (d.type === "ceilturret") return { type:"ceilturret", x:d.x, y:d.y, hp:4, maxHp:4, t:1.6 + Math.random(), told:false, flashT:0, dead:false };
@@ -1908,7 +1948,9 @@ function updatePlayer(dt){
          BOSS GATE entrance, not the checkpoint — Mega Man X runback rules.
          resetStage(false) below re-arms both gate doors, clears
          bossTriggered/sealActive and resets the Wraith to full HP, so the
-         corridor, the trigger and SCENE_WRAITH_PRE all replay cleanly.
+         corridor and the trigger replay cleanly. SCENE_WRAITH_PRE itself is
+         seen-flagged (STORY.wraithPreSeen): first attempt only, retries go
+         straight to WARNING.
          The checkpoint respawnPoint itself is left untouched. */
       const wraithRunback = bossTriggered && B.state !== "dead" && P.x > 23000;
       const rp = wraithRunback ? BOSS_GATE_RESPAWN : respawnPoint;
@@ -2693,6 +2735,30 @@ function enemyBox(e){
   return { x:e.x - 34, y:e.baseY - 66, w:68, h:66 };
 }
 function bossBox(){ return { x:B.x - 46, y:B.y - 196, w:92, h:196 }; }
+/* the standard enemy death flow (explosion, kill credit, drops),
+   extracted from damageEnemy so the crawler's death SEQUENCE can
+   run its 0.35s first and land here when the collapse finishes */
+function finalizeEnemyDeath(e){
+  const cyOf = () => (e.type === "turret" || e.type === "mortar") ? e.baseY - 32 : (e.type === "ceilturret" ? e.y : e.y - 30);
+  e.dead = true;
+  const cy = cyOf();
+  const big = e.type === "brute" || e.type === "shieldwalker";
+  spawnBoom(e.x, cy, big ? 1.5 : (e.type === "turret" || e.type === "mortar" || e.type === "ceilturret" ? 1.05 : 0.85));
+  SFX.boom(e.x); if (big) SFX.boomBig(e.x);
+  onEnemyKilled(e, big, cy);
+  if (e.type === "turret" || e.type === "ceilturret" || e.type === "mortar")
+    wrecks.push({ x:e.x, y:(e.type === "ceilturret" ? e.y + 30 : e.baseY), t:Math.random() * 2 });
+  if (e.type === "mine") explodeMine(e);
+  if (e.type === "brute"){
+    pickups.push({ x:e.x, y:e.y - 60, kind:"coretank", taken:false, ph:0, dropped:true });
+    toast("FOREMAN-9 DOWN — POWER CELL DROPPED", 1.8);
+  } else {
+    const roll = Math.random();
+    if (roll < 0.42) pickups.push({ x:e.x, y:cy, kind:"shard", taken:false, ph:0, dropped:true });
+    else if (roll < 0.64) pickups.push({ x:e.x, y:cy, big:false, kind:"cell", taken:false, ph:0, dropped:true });
+    else if (roll < 0.70) pickups.push({ x:e.x, y:cy, kind:"mystery", taken:false, ph:0, dropped:true });
+  }
+}
 function damageEnemy(e, dmg, dir, opts){
   opts = opts || {};
   /* A4 DIVER: submerged it cannot be hit — only lurking and airborne count */
@@ -2711,6 +2777,9 @@ function damageEnemy(e, dmg, dir, opts){
     }
   }
   e.hp -= dmg; e.flashT = 0.09;
+  /* PILOT crawler hurt: procedural — the hit-flash above (flashT)
+     plus a 0.12s recoil window drawCrawler renders (3px shove + tilt) */
+  if (e.type === "crawler" && e.hp > 0){ e.hurtT = 0.12; e.hurtDir = dir ? Math.sign(dir) : 1; }
   if (opts.launch && e.type === "walker"){ e.air = true; e.vy = -430; e.state = "patrol"; }
   if (opts.launch && e.type === "shieldwalker"){ e.air = true; e.vy = -380; }
   if (opts.launch && e.type === "drone"){ e.launchT = 0.55; }
@@ -2720,24 +2789,12 @@ function damageEnemy(e, dmg, dir, opts){
   spawnParticles(e.x, cyOf(), 5, ["#7df3ff", "#ffffff"], 120, 0.3, 150);
   SFX.hit(e.x);
   if (e.hp <= 0 && !e.dead){
-    e.dead = true;
-    const cy = cyOf();
-    const big = e.type === "brute" || e.type === "shieldwalker";
-    spawnBoom(e.x, cy, big ? 1.5 : (e.type === "turret" || e.type === "mortar" || e.type === "ceilturret" ? 1.05 : 0.85));
-    SFX.boom(e.x); if (big) SFX.boomBig(e.x);
-    onEnemyKilled(e, big, cy);
-    if (e.type === "turret" || e.type === "ceilturret" || e.type === "mortar")
-      wrecks.push({ x:e.x, y:(e.type === "ceilturret" ? e.y + 30 : e.baseY), t:Math.random() * 2 });
-    if (e.type === "mine") explodeMine(e);
-    if (e.type === "brute"){
-      pickups.push({ x:e.x, y:e.y - 60, kind:"coretank", taken:false, ph:0, dropped:true });
-      toast("FOREMAN-9 DOWN — POWER CELL DROPPED", 1.8);
-    } else {
-      const roll = Math.random();
-      if (roll < 0.42) pickups.push({ x:e.x, y:cy, kind:"shard", taken:false, ph:0, dropped:true });
-      else if (roll < 0.64) pickups.push({ x:e.x, y:cy, big:false, kind:"cell", taken:false, ph:0, dropped:true });
-      else if (roll < 0.70) pickups.push({ x:e.x, y:cy, kind:"mystery", taken:false, ph:0, dropped:true });
-    }
+    /* PILOT: a crawler with its redraw sheet loaded dies ON CAMERA —
+       D1 buckle -> code tween -> D3 collapse over 0.35s, driven by
+       updateEnemies; finalizeEnemyDeath fires when the collapse ends.
+       Without the sheet it takes the standard instant death below. */
+    if (e.type === "crawler" && e.dying == null && CRAWLER_ATLAS_OK && IMG.crawler){ e.dying = 0.35; return false; }
+    finalizeEnemyDeath(e);
   }
   return false;
 }
@@ -2844,11 +2901,19 @@ function updateEnemies(dt){
       }
       if (!P.dead && Math.abs(P.x - e.x) < 36 && Math.abs(P.y - e.baseY) < 60) hurtPlayer(2, e.x);
     } else if (e.type === "crawler"){
-      e.x += e.dir * 58 * dt;
-      if (e.x < e.min){ e.x = e.min; e.dir = 1; }
-      if (e.x > e.max){ e.x = e.max; e.dir = -1; }
-      e.walkPh = (e.walkPh || 0) + Math.abs(58 * dt);
-      if (!P.dead && Math.abs(P.x - e.x) < 30 && P.y > e.y - 34 && P.y - P.h < e.y) hurtPlayer(2, e.x);
+      if (e.hurtT > 0) e.hurtT -= dt;
+      if (e.dying != null){
+        /* collapsing: no patrol, no contact damage — when the timer
+           lapses the standard explosion/removal flow takes over */
+        e.dying -= dt;
+        if (e.dying <= 0){ e.dying = null; finalizeEnemyDeath(e); }
+      } else {
+        e.x += e.dir * 58 * dt;
+        if (e.x < e.min){ e.x = e.min; e.dir = 1; }
+        if (e.x > e.max){ e.x = e.max; e.dir = -1; }
+        e.walkPh = (e.walkPh || 0) + Math.abs(58 * dt);
+        if (!P.dead && Math.abs(P.x - e.x) < 30 && P.y > e.y - 34 && P.y - P.h < e.y) hurtPlayer(2, e.x);
+      }
     } else if (e.type === "swooper"){
       e.t += dt;
       if (e.state === "roost"){
@@ -3679,6 +3744,7 @@ function bgSectionGrad(sec, st){
 }
 function drawBackground(){
   if (GRAYBOX){
+    if (sectionDressedAt(camX + VW / 2, camY + VH / 2)){ drawGantrySky(); return; }
     /* flat mood field + a faint world grid so the multi-band depth reads */
     const st = SECTION_STYLE[sectionAt(camX + VW / 2, camY + VH / 2)];
     ctx.fillStyle = st.bg1; ctx.fillRect(0, 0, VW, VH);
@@ -3731,6 +3797,7 @@ function sectionOf(s){
 function drawPlatform(s){
   const x = s.x, y = s.y, w = s.w, h = s.h;
   if (GRAYBOX){
+    if (sectionDressedAt(x + w / 2, y + h / 2)){ drawGantryPlatform(s); return; }
     /* flat section-tinted block: lighter top edge, dark outline;
        movers get diagonal hatching so they read as machinery */
     ctx.fillStyle = GB_TINTS[sectionIndexAt(x + w / 2, y + h / 2)];
@@ -4437,6 +4504,290 @@ function drawChargeBurst(){
   ctx.beginPath(); ctx.arc(gx, gy, 4 + k * 30, 0, 7); ctx.stroke();
   ctx.restore();
 }
+/* ---------------- PILOT: gantry dressing (scene 02, x 2000-4000) -------
+   Concept translation of design/level-refs/01-rooftop-gantry.png: dusk
+   sky over a ruined skyline with a drifting fog band, crane + truss
+   steel in the mid-ground, stepped violet-circuit platforms with cyan
+   light strips, amber post lamps, a smokestack breathing sprite smoke.
+   The relay beacon (CP1) drives the light state: before STORY.beacon
+   the lamps burn amber and the circuit strips idle dim; after the
+   relight the strips flare cyan and a light wash rolls east across the
+   section off the beaconFlash clock. Every ambient loop is a function
+   of stageTime (elapsed seconds) with a per-prop phase — nothing here
+   counts frames, and nothing pulses in sync with anything else. */
+function gantryHash(n){ let h = (n * 2654435761) >>> 0; h ^= h >>> 13; h = (h * 1274126177) >>> 0; return (h ^ (h >>> 16)) >>> 0; }
+function gantryLampLevel(){ return STORY.beacon ? 1 : 0; }   /* 0 = pre-relight (amber lamps, dim strips), 1 = post-relight */
+
+/* --- sky: MAP-palette dusk gradient, twinkling star field, two
+   procedural skyline silhouette strips (parallax 0.35 / 0.6), fog --- */
+let gantrySkyGrad = null, gantryFarCv = null, gantryNearCv = null;
+function buildGantrySkyline(cv, base, jag, seed, crane, ruin){
+  cv.width = 2048; cv.height = 360;
+  const c = cv.getContext("2d");
+  let rng = seed >>> 0;
+  const rnd = () => { rng = (rng * 1664525 + 1013904223) >>> 0; return rng / 4294967296; };
+  c.clearRect(0, 0, 2048, 360);
+  c.fillStyle = base;
+  let x = -20;
+  while (x < 2060){
+    const tw = 60 + rnd() * 130, th = 130 + rnd() * 210;
+    const ty = 360 - th;
+    c.fillRect(x, ty, tw, th);
+    let jx = x, rem = tw;   /* broken crown: jagged steps along the top */
+    while (rem > 14){
+      const jw = 12 + rnd() * 22, jh = rnd() * jag;
+      c.fillRect(jx, ty - jh, Math.min(jw, rem), jh + 1);
+      jx += jw; rem -= jw;
+    }
+    if (rnd() < 0.4) c.fillRect(x + tw / 2 - 1, ty - 26 - rnd() * 30, 2, 30 + rnd() * 26);   /* antenna */
+    if (rnd() < 0.3){   /* a smoke plume frozen into the far silhouette */
+      c.save(); c.globalAlpha = 0.30; c.fillStyle = "#aebadd";
+      for (let p = 0; p < 5; p++){ c.beginPath(); c.ellipse(x + tw / 2 + p * 13, ty - 16 - p * 17, 15 + p * 5, 9 + p * 3, -0.4, 0, 7); c.fill(); }
+      c.restore();
+    }
+    x += tw + 8 + rnd() * 60;
+  }
+  if (ruin){   /* one hollowed tower: window grid punched through to the sky */
+    c.save(); c.globalCompositeOperation = "destination-out";
+    for (let ry = 0; ry < 5; ry++) for (let rx = 0; rx < 4; rx++)
+      if (rnd() < 0.75) c.fillRect(880 + rx * 26, 150 + ry * 30, 15, 18);
+    c.restore();
+  }
+  if (crane){   /* a tower crane baked into the near silhouette */
+    c.fillStyle = base;
+    c.fillRect(300, 60, 16, 300); c.fillRect(268, 44, 640, 12); c.fillRect(240, 44, 40, 26);
+    c.beginPath(); c.moveTo(316, 56); c.lineTo(880, 118); c.lineTo(880, 124); c.lineTo(316, 62); c.closePath(); c.fill();
+  }
+}
+function drawGantrySky(){
+  if (!gantrySkyGrad){
+    gantrySkyGrad = ctx.createLinearGradient(0, 0, 0, VH);
+    gantrySkyGrad.addColorStop(0, "#3d4a7d"); gantrySkyGrad.addColorStop(0.45, "#596c9c");
+    gantrySkyGrad.addColorStop(0.72, "#7d8cb3"); gantrySkyGrad.addColorStop(0.88, "#939bbb");
+    gantrySkyGrad.addColorStop(1, "#5d6890");
+  }
+  ctx.fillStyle = gantrySkyGrad; ctx.fillRect(0, 0, VW, VH);
+  const horizon = 478 - camY;   /* skyline bases sit just under the gantry floor line */
+  ctx.fillStyle = "#dfe8ff";
+  for (let i = 0; i < 42; i++){
+    const sx = (i * 173.31) % VW, sy = (i * 89.77) % (VH * 0.4);
+    ctx.globalAlpha = gfxHigh ? 0.14 + 0.3 * (0.5 + 0.5 * Math.sin(stageTime * 1.2 + i * 2.39)) : 0.3;
+    ctx.fillRect(sx, sy, i % 5 === 0 ? 2 : 1, i % 5 === 0 ? 2 : 1);
+  }
+  ctx.globalAlpha = 1;
+  if (!gantryFarCv){
+    gantryFarCv = document.createElement("canvas"); buildGantrySkyline(gantryFarCv, "#4d5b8f", 16, 1234567, false, false);
+    gantryNearCv = document.createElement("canvas"); buildGantrySkyline(gantryNearCv, "#2a3160", 24, 7654321, true, true);
+  }
+  let off = -((camX * 0.35) % 2048); if (off > 0) off -= 2048;
+  ctx.globalAlpha = 0.85;
+  for (let gx = off; gx < VW; gx += 2048) ctx.drawImage(gantryFarCv, gx, horizon - 300, 2048, 360);
+  off = -((camX * 0.6) % 2048); if (off > 0) off -= 2048;
+  ctx.globalAlpha = 0.95;
+  for (let gx = off; gx < VW; gx += 2048) ctx.drawImage(gantryNearCv, gx, horizon - 346, 2048, 360);
+  ctx.globalAlpha = 1;
+  /* fog band: slow translucent puffs drifting above the floor line —
+     atmosphere only, it never reaches the playfield or hides footing */
+  if (gfxHigh){
+    ctx.fillStyle = "#c4d2ee";
+    for (let i = 0; i < 4; i++){
+      const fx = ((i * 397 + stageTime * (5 + i * 2.3)) % (VW + 560)) - 280;
+      const fy = horizon - 66 + i * 15 + Math.sin(stageTime * 0.3 + i * 1.9) * 6;
+      ctx.globalAlpha = 0.038 + 0.014 * Math.sin(stageTime * 0.23 + i * 2.6);
+      ctx.beginPath(); ctx.ellipse(fx, fy, 300, 26, 0, 0, 7); ctx.fill();
+      ctx.globalAlpha *= 0.7;
+      ctx.beginPath(); ctx.ellipse(fx + 90, fy - 9, 190, 17, 0, 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+/* --- platform skin: stepped violet-circuit blocks. Everything drawn
+   stays INSIDE the solid's rect, so the visible block IS the collision. --- */
+function drawGantryPlatform(s){
+  const x = s.x, y = s.y, w = s.w, h = s.h;
+  const g = ctx.createLinearGradient(0, y, 0, y + Math.min(h, 190));
+  g.addColorStop(0, "#322a58"); g.addColorStop(0.25, "#221c44"); g.addColorStop(1, "#100e28");
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  const hash = gantryHash((x * 31 + y * 7 + w) | 0);
+  if (gfxHigh){
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.strokeStyle = "rgba(154,107,255,0.5)"; ctx.lineWidth = 2;
+    const nt = Math.max(1, Math.min(6, (w / 130) | 0));
+    for (let i = 0; i < nt; i++){
+      const hh = gantryHash(hash + i * 101);
+      const tx = x + 14 + (hh % Math.max(24, w - 90));
+      const ty = y + 26 + ((hh >> 4) % Math.max(10, Math.min(h - 52, 130)));
+      const run = 22 + ((hh >> 8) % 44), drop = 14 + ((hh >> 12) % 26);
+      ctx.beginPath();
+      ctx.moveTo(tx, ty); ctx.lineTo(tx + run, ty); ctx.lineTo(tx + run, ty + drop); ctx.lineTo(tx + run + 14, ty + drop);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(190,160,255,0.8)";
+      ctx.fillRect(tx + run + 12, ty + drop - 1.5, 3, 3);
+    }
+    ctx.strokeStyle = "rgba(6,6,18,0.55)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let sx = x + 92; sx < x + w - 8; sx += 92){ ctx.moveTo(sx, y + 4); ctx.lineTo(sx, y + h - 4); }
+    ctx.stroke();
+    ctx.restore();
+  }
+  /* cyan light strips: recessed band near the top face (plus a low one
+     on tall blocks, as in the concept). Dim teal idle before the beacon
+     relights; breathing cyan flare after. Phase is per-strip, hashed
+     off position, so no two strips pulse together. */
+  const lit = STORY.beacon;
+  const pulse = 0.5 + 0.5 * Math.sin(stageTime * 2.1 + (hash % 628) / 100);
+  const strip = (sy, sh) => {
+    ctx.fillStyle = "#070d18"; ctx.fillRect(x + 9, sy - 2, w - 18, sh + 4);
+    if (lit && gfxHigh){ ctx.fillStyle = "rgba(70,242,255," + (0.13 + pulse * 0.1) + ")"; ctx.fillRect(x + 5, sy - 5, w - 10, sh + 10); }
+    ctx.fillStyle = lit ? "rgba(70,242,255," + (0.72 + pulse * 0.28) + ")" : "rgba(46,127,150," + (0.4 + pulse * 0.12) + ")";
+    ctx.fillRect(x + 9, sy, w - 18, sh);
+  };
+  if (h <= 22) strip(y + h / 2 - 2.5, 5);
+  else { strip(y + 13, 6); if (h >= 140) strip(y + h - 34, 6); }
+  /* top face: a lighter slab lip so the walking surface reads first */
+  ctx.fillStyle = "#4a3f7d"; ctx.fillRect(x, y, w, 4);
+  ctx.fillStyle = "rgba(190,205,255,0.5)"; ctx.fillRect(x, y, w, 1.5);
+  if (s.isMover){   /* movers keep a machinery tell: amber chevrons at the base */
+    ctx.fillStyle = "#ffb37d";
+    for (let mx = x + 12; mx < x + w - 8; mx += 22){
+      ctx.beginPath(); ctx.moveTo(mx, y + h - 6); ctx.lineTo(mx + 6, y + h - 11); ctx.lineTo(mx + 12, y + h - 6); ctx.closePath(); ctx.fill();
+    }
+  }
+}
+/* --- back layer (world space, before solids): distant crane, the
+   smokestack + its smoke emitter, the lift-bay truss, the hero crane
+   with its swaying chain and hook --- */
+let gantrySmokeT = -9;
+function drawGantryBack(){
+  ctx.save();
+  ctx.globalAlpha = 0.45; ctx.fillStyle = "#232a52";   /* distant second crane, faded into the dusk */
+  ctx.fillRect(3652, 96, 14, 374); ctx.fillRect(3560, 82, 380, 10); ctx.fillRect(3536, 82, 30, 20);
+  ctx.beginPath(); ctx.moveTo(3666, 92); ctx.lineTo(3908, 138); ctx.lineTo(3908, 143); ctx.lineTo(3666, 97); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "#1d2142";   /* smokestack on F4 */
+  ctx.fillRect(3518, 252, 34, 218); ctx.fillRect(3512, 240, 46, 14);
+  ctx.fillStyle = "rgba(150,170,220,0.25)"; ctx.fillRect(3518, 252, 5, 218);
+  if (gfxHigh && stageTime - gantrySmokeT > 0.16){   /* rising sprite smoke, elapsed-time emitter */
+    gantrySmokeT = stageTime;
+    spawnSpart("fxsmoke", 3535 + (Math.random() * 10 - 5), 232, 7 + Math.random() * 6, -26 - Math.random() * 9, 1.7 + Math.random() * 0.7, 44 + Math.random() * 26, -14, 0.25);
+  }
+  ctx.strokeStyle = "#171b36"; ctx.lineWidth = 9;   /* girder truss over the lift bay */
+  ctx.beginPath(); ctx.moveTo(2960, 158); ctx.lineTo(3480, 158); ctx.moveTo(2960, 206); ctx.lineTo(3480, 206); ctx.stroke();
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  for (let tx = 2960; tx < 3480; tx += 52){ ctx.moveTo(tx, 206); ctx.lineTo(tx + 52, 158); ctx.moveTo(tx, 158); ctx.lineTo(tx + 52, 206); }
+  ctx.stroke(); ctx.lineWidth = 1;
+  ctx.fillStyle = "#171b36"; ctx.fillRect(2992, 206, 13, 264); ctx.fillRect(3436, 206, 13, 264);
+  /* hero crane: mast at the section's west edge, apex + ties, long jib */
+  ctx.fillStyle = "#141830";
+  ctx.fillRect(2052, 56, 30, 640); ctx.fillRect(2060, 22, 14, 40);
+  ctx.fillRect(1960, 72, 720, 20); ctx.fillRect(1936, 72, 34, 44);
+  ctx.fillStyle = "rgba(160,180,230,0.18)"; ctx.fillRect(2052, 56, 5, 640);
+  ctx.strokeStyle = "#141830"; ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(2067, 26); ctx.lineTo(2400, 74); ctx.moveTo(2067, 26); ctx.lineTo(1976, 74);
+  ctx.moveTo(2100, 92); ctx.lineTo(2128, 72); ctx.lineTo(2156, 92); ctx.lineTo(2184, 72); ctx.lineTo(2212, 92);
+  ctx.stroke(); ctx.lineWidth = 1;
+  /* chain + hook off the jib: sway is two slow sines of elapsed time */
+  const pivotX = 2470, pivotY = 94, chainLen = 300;
+  const sway = Math.sin(stageTime * 0.55) * 0.045 + Math.sin(stageTime * 0.23 + 1.3) * 0.02;
+  const hx = pivotX + Math.sin(sway) * chainLen, hy = pivotY + Math.cos(sway) * chainLen;
+  ctx.strokeStyle = "#0d0f22"; ctx.lineWidth = 3.5;
+  ctx.beginPath(); ctx.moveTo(pivotX, pivotY); ctx.lineTo(hx, hy); ctx.stroke();
+  ctx.strokeStyle = "#2a3050"; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx, hy + 12);
+  ctx.arc(hx + 5, hy + 17, 6, Math.PI * 0.6, Math.PI * 2.15); ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.restore();
+}
+/* --- front layer (after solids, before enemies): the beacon relight
+   wash, loose sagging cables, the amber post lamps --- */
+const GANTRY_LAMPS = [
+  { x:2185, base:470, h:64 }, { x:2405, base:352, h:44 }, { x:2835, base:470, h:64 },
+  { x:3190, base:470, h:64 }, { x:3765, base:470, h:64 }
+];
+function drawGantryFront(){
+  if (beaconFlash > 0.02){   /* the relight wash rolls east off CP1 on the beaconFlash clock */
+    const wx = 2900 + (1 - beaconFlash) * 1150;
+    const wg = ctx.createLinearGradient(wx - 190, 0, wx + 190, 0);
+    wg.addColorStop(0, "rgba(125,243,255,0)");
+    wg.addColorStop(0.5, "rgba(125,243,255," + (0.20 * beaconFlash) + ")");
+    wg.addColorStop(1, "rgba(125,243,255,0)");
+    ctx.fillStyle = wg; ctx.fillRect(wx - 190, 60, 380, 470);
+  }
+  ctx.strokeStyle = "rgba(10,12,26,0.85)"; ctx.lineWidth = 3;   /* loose cables, breathing sag */
+  const sag = Math.sin(stageTime * 0.5 + 1.1) * 3;
+  ctx.beginPath(); ctx.moveTo(2330, 94); ctx.quadraticCurveTo(2385, 168 + sag, 2440, 108); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(3200, 208); ctx.quadraticCurveTo(3280, 262 - sag, 3360, 208); ctx.stroke();
+  ctx.lineWidth = 1;
+  ctx.fillStyle = "#0d0f22"; ctx.fillRect(2434, 104, 10, 14);   /* dangling connector box */
+  /* amber post lamps — the section's warm light before AND after the
+     relight (the strips are what change). Each flickers on its own
+     pair of phases; performance mode drops the glow pool, keeps the bulb. */
+  for (let i = 0; i < GANTRY_LAMPS.length; i++){
+    const L = GANTRY_LAMPS[i], topY = L.base - L.h;
+    ctx.fillStyle = "#12152c"; ctx.fillRect(L.x - 2, topY, 4, L.h); ctx.fillRect(L.x - 6, topY - 3, 12, 4);
+    const fl = 0.78 + 0.14 * Math.sin(stageTime * 11 + i * 2.7) + 0.08 * Math.sin(stageTime * 23 + i * 5.3);
+    if (gfxHigh){
+      const rg = ctx.createRadialGradient(L.x, topY - 6, 2, L.x, topY - 6, 44);
+      rg.addColorStop(0, "rgba(255,178,92," + (0.34 * fl) + ")"); rg.addColorStop(1, "rgba(255,178,92,0)");
+      ctx.fillStyle = rg; ctx.fillRect(L.x - 44, topY - 50, 88, 88);
+      ctx.fillStyle = "rgba(255,170,80," + (0.13 * fl) + ")";
+      ctx.beginPath(); ctx.ellipse(L.x, L.base - 2, 30, 6, 0, 0, 7); ctx.fill();
+    }
+    ctx.save();
+    ctx.shadowColor = "#ffb37d"; ctx.shadowBlur = gfxHigh ? 9 : 0;
+    ctx.fillStyle = "rgba(255,196,110," + Math.min(1, fl + 0.15) + ")";
+    ctx.beginPath(); ctx.arc(L.x, topY - 6, 3.6, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+}
+/* --- the crawler: full redraw set. Walk = 8 frames at 24 fps on the
+   elapsed clock (performance mode halves the RATE to 12, never the
+   frame count); each patrol carries its own phase. Hurt = the engine
+   hit-flash (flashT bright pass) + a recoil: the current walk frame
+   shoved 3px away from the hit with a ~4 deg tilt for 0.12s. Death =
+   D1 buckle -> sink/tilt tween -> D3 collapse over 0.35s, then
+   finalizeEnemyDeath's explosion takes the stage. --- */
+function crawlerFrameAt(e, t){
+  const rate = gfxHigh ? 24 : 12;
+  const ph = t * rate + (e.min || 0) * 0.41;
+  return { idx: Math.abs(Math.floor(ph)) % CRAWLER_WALK.length };
+}
+function drawCrawlerSprite(e, f, xOff, yOff, tilt){
+  const img = IMG.crawler; if (!img || !f) return;
+  const sc = 40 / f.h, w = f.w * sc, h = f.h * sc;
+  ctx.save();
+  if (e.flashT > 0) ctx.filter = "brightness(2.8) saturate(0.3)";
+  ctx.translate(Math.round(e.x + (xOff || 0)), Math.round(e.y + (f.ay || 0) * sc + (yOff || 0)));
+  if (tilt) ctx.rotate(tilt);
+  if (e.dir < 0) ctx.scale(-1, 1);
+  ctx.drawImage(img, f.x, f.y, f.w, f.h, -f.ax * sc, -h, w, h);
+  ctx.restore();
+}
+function drawCrawler(e){
+  if (CRAWLER_ATLAS_OK && IMG.crawler){
+    CRAWLER_LAST_PATH = "atlas";
+    if (e.dying != null){
+      const t = 1 - Math.max(0, e.dying) / 0.35;   /* 0..1 over the collapse */
+      if (t < 0.45){ const k = t / 0.45; drawCrawlerSprite(e, CRAWLER_DEATH[0], 0, k * 3, k * 0.05); }
+      else { const k = (t - 0.45) / 0.55; drawCrawlerSprite(e, CRAWLER_DEATH[1], 0, 3 + k * 2, 0.05 - k * 0.02); }
+      return;
+    }
+    const f = CRAWLER_WALK[crawlerFrameAt(e, stageTime).idx];
+    let xOff = 0, tilt = 0;
+    if (e.hurtT > 0){ const k = e.hurtT / 0.12; xOff = (e.hurtDir || 1) * 3 * k; tilt = (e.hurtDir || 1) * 0.07 * k; }
+    drawCrawlerSprite(e, f, xOff, 0, tilt);
+    return;
+  }
+  CRAWLER_LAST_PATH = IMG.enemies2 ? "fallback" : "none";
+  if (IMG.enemies2){
+    const f = ENEMY2_FRAMES[((e.walkPh || 0) / 20 | 0) % 2 === 0 ? "crawler1" : "crawler2"];
+    drawSprite(IMG.enemies2, f, e.x, e.y, 40 / f.h, e.dir < 0, 1, e.flashT > 0);
+  }
+}
+
 /* ---------------- GRAYBOX drawing ----------------
    Flat, legible placeholders: the layout IS the deliverable of this
    pass. Every dressed-path function stays untouched behind the flag. */
@@ -4671,10 +5022,12 @@ function drawWorld(){
     if (roll){ ctx.translate(VW / 2, VH / 2); ctx.rotate(roll); ctx.translate(-VW / 2, -VH / 2); }
   }
   ctx.translate(-Math.round(camX + shx + camKickX), -Math.round(camY + shy + camKickY));
+  if (gantryOnScreen()) drawGantryBack();
   if (!GRAYBOX) for (const d of DECOR) if (d.back) drawDecor(d);
   for (const s of allSolids()){ if (s.crumble || s === SHUTTER_OBJ) continue; if (s.x + s.w > camX - 20 && s.x < camX + VW + 20) drawPlatform(s); }
   if (!GRAYBOX) drawFloorDetails();
   if (!GRAYBOX) for (const d of DECOR) if (!d.back) drawDecor(d);
+  if (gantryOnScreen()) drawGantryFront();
   for (const sp of SPIKES) drawSpikes(sp);
   drawWaterAndBreakable();
   if (!GRAYBOX) drawGate();
@@ -4696,7 +5049,7 @@ function drawWorld(){
     if (e.x < camX - 160 || e.x > camX + VW + 160) continue;
     ctx.save();
     if (e.flashT > 0) ctx.translate((Math.random() * 2 - 1) * 3.5, (Math.random() * 2 - 1) * 1.5);   /* hit-shake */
-    if (GRAYBOX){ drawGrayEnemy(e); ctx.restore(); continue; }
+    if (GRAYBOX && !sectionDressedAt(e.x, e.y)){ drawGrayEnemy(e); ctx.restore(); continue; }
     if (e.type === "walker"){
       if (e.hp <= e.maxHp / 2 && e.state !== "shoot" && IMG.enemies2){
         /* below half HP the walker wears its damage */
@@ -4716,10 +5069,7 @@ function drawWorld(){
         drawSprite(IMG.enemies, f, e.x, e.y + f.h * DRONE_SCALE / 2 - (f.ay || 0) * DRONE_SCALE, DRONE_SCALE, P.x > e.x, 1, e.flashT > 0);
       }
     } else if (e.type === "crawler"){
-      if (IMG.enemies2){
-        const f = ENEMY2_FRAMES[((e.walkPh || 0) / 20 | 0) % 2 === 0 ? "crawler1" : "crawler2"];
-        drawSprite(IMG.enemies2, f, e.x, e.y, 40 / f.h, e.dir < 0, 1, e.flashT > 0);
-      }
+      drawCrawler(e);
     } else if (e.type === "swooper"){
       if (IMG.enemies2){
         const f = ENEMY2_FRAMES[e.state === "dive" ? "swoopdive" : "swooper"], sc = 54 / f.h;
@@ -4850,7 +5200,7 @@ function drawWorld(){
     if (!blink){
       const pose = currentPoseName();
       const pd = poseData(pose);
-      if (GRAYBOX) drawGrayPlayer();
+      if (GRAYBOX && !sectionDressedAt(P.x, P.y)) drawGrayPlayer();
       else drawSprite(pd.img, pd.f, P.x, P.y, pd.scale, poseFlip(pose), 1, P.hurtT > 0.2);
       /* standalone trail FX sprites + impact bursts (sword atlas) */
       for (const fx of swordFx){
@@ -5305,8 +5655,16 @@ function frame(now){
            zero and the fade would sit at full black forever (the boss
            gate black-screen bug). Queued, the fade completes first and
            the main branch starts the scene the moment it clears. */
-        pendingScene = { lines:SCENE_WRAITH_PRE, onDone:() => { warningT = 2.4; B.state = "intro"; B.t = 0; SFX.warn(); } };
-        pendingSceneT = 0.05;
+        if (!STORY.wraithPreSeen){
+          STORY.wraithPreSeen = true;
+          pendingScene = { lines:SCENE_WRAITH_PRE, onDone:() => { warningT = 2.4; B.state = "intro"; B.t = 0; SFX.warn(); } };
+          pendingSceneT = 0.05;
+        } else {
+          /* RETRY (seen-flag set): Sable died to the Wraith and ran back
+             from the boss gate — the accusation plays on the first
+             attempt only, so WARNING + intro start as the fade clears. */
+          warningT = 2.4; B.state = "intro"; B.t = 0; SFX.warn();
+        }
       }
       updateFx(dt);
     } else if (AEGIS_BEAT.active){
