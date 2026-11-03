@@ -1437,7 +1437,7 @@ function resetPlayer(x, y){
   P.shotCd = 0; P.pendingShot = false; P.noCutT = 0; P.cutDone = false; P.wallSliding = false; P.slashDashing = false;
   P.slideLatch = 0; P.slideLatchT = 0; P.dashBuf = 0; P.hpGhost = 16; P.hpGhostT = 0;
   P.dashStartT = 0; P.wallJumpPoseT = 0; P.landHardT = 0; P.ledgeHang = false; P.hurtAir = false;
-  P.fullCharge = false; P.auraBurstT = 0;
+  P.fullCharge = false; P.auraBurstT = 0; P.auraBurstX = null; P.auraBurstY = null;
   P.comboStep = 0; P.comboWindowT = 0; P.slashKind = null; P.slashDur = 0.22; P.slashBufferT = 0;
   P.readyStanceT = 0; P.spinUsed = false; P.diveActive = false; P.beamHeld = false;
   /* MEGA EXPANSION state */
@@ -1911,10 +1911,13 @@ function updatePlayer(dt){
      shot is held — running, airborne, dashing, wall sliding, ledge gripping */
   P.fullCharge = !!(IN.shot && P.chargeT >= 1.1 && !P.dead);
   if (P.fullCharge && P.wallSliding && Math.random() < 0.55){
-    /* grip sparks where his hand holds the wall */
-    particles.push({ x:P.x + P.slideLatch * 16, y:P.y - 52 + Math.random() * 24,
-      vx:P.slideLatch * (24 + Math.random() * 50), vy:-30 - Math.random() * 60,
-      life:0.28, max:0.28, size:1.7, color:Math.random() < 0.5 ? "#7df3ff" : "#ffd76a", grav:120 });
+    /* full-charge wall sparks gather at the blaster muzzle, not the wall hand */
+    const mz = muzzleWorld(currentPoseName());
+    if (mz){
+      const px = mz.x + (Math.random() - 0.5) * 8, py = mz.y + (Math.random() - 0.5) * 8;
+      particles.push({ x:px, y:py, vx:(mz.x - px) * 3, vy:(mz.y - py) * 3 - 8,
+        life:0.28, max:0.28, size:1.7, color:Math.random() < 0.5 ? "#7df3ff" : "#ffffff", grav:0 });
+    }
   }
 
   /* dive slash drives the fall; spin slash hovers briefly */
@@ -2127,6 +2130,15 @@ function muzzleWorld(name){
   return { x: P.x + (poseFlip(name) ? -1 : 1) * (f.mx - f.ax) * s,
            y: P.y - (f.h - (f.ay || 0) - f.my) * s };
 }
+/* world-space anchor for every blaster charge visual: the muzzle face
+   of the pose DISPLAYED right now (ground / air / wall / ladder /
+   braced), via the same poseData/muzzleWorld truth the bolts use.
+   Poses with no blaster muzzle (sword, story) return null — charge
+   visuals are suppressed there rather than falling back to the chest. */
+function chargeMuzzlePoint(){
+  return muzzleWorld(currentPoseName());
+}
+
 /* the aim pose for the current state while firing / holding charge /
    inside the ~250ms aim-hold window after a shot — null when the
    underlying state pose should show instead */
@@ -2275,10 +2287,10 @@ function startSlash(dashing){
      fires the beam crescent and consumes the charge (aura discharges) */
   if (IN.shot && P.chargeT >= 1.1){
     P.chargeT = 0; P.chargePinged = false; P.beamHeld = true; chargeLoopStop();
-    P.auraBurstT = 0.28;
-    pBolts.push({ x:P.x + P.face * 34, y:P.y - 40, vx:P.face * 660, r:11, dmg:1, pierce:true, beam:true });
+    P.auraBurstT = 0.28; P.auraBurstX = P.x + P.face * 34; P.auraBurstY = P.y - 40;
+    pBolts.push({ x:P.auraBurstX, y:P.auraBurstY, vx:P.face * 660, r:11, dmg:1, pierce:true, beam:true });
     SFX.shotBig();
-    spawnParticles(P.x + P.face * 8, P.y - 41, 14, ["#7df3ff", "#ffffff", "#9a6bff"], 220, 0.4, 60);
+    spawnParticles(P.auraBurstX, P.auraBurstY, 14, ["#7df3ff", "#ffffff", "#9a6bff"], 220, 0.4, 60);
   }
 }
 function endSlash(){
@@ -2339,9 +2351,9 @@ function fireShot(){
      through Sable on diagonal shots.) */
   if (lvl === 2){
     pBolts.push({ x:mx, y:my, vx:vx, vy:vy, r:13, len:52, dmg:2, pierce:true, big:true }); SFX.shotBig();
-    /* the carried aura discharges in a burst as the shot leaves */
-    P.auraBurstT = 0.28;
-    spawnParticles(P.x + P.face * 5, P.y - 41, 20, ["#7df3ff", "#ffffff", "#9a6bff", "#35e0ff"], 260, 0.45, 60);
+    /* the carried aura discharges in a burst at the muzzle as the shot leaves */
+    P.auraBurstT = 0.28; P.auraBurstX = mx; P.auraBurstY = my;
+    spawnParticles(mx, my, 20, ["#7df3ff", "#ffffff", "#9a6bff", "#35e0ff"], 260, 0.45, 60);
   }
   else if (lvl === 1){ pBolts.push({ x:mx, y:my, vx:vx, vy:vy, r:8, len:38, dmg:1, pierce:false }); SFX.shotMid(); }
   else { pBolts.push({ x:mx, y:my, vx:vx, vy:vy, r:5, len:27, dmg:1, pierce:false }); SFX.shot(); }
@@ -3862,8 +3874,9 @@ function drawPickup(pk){
 }
 /* ---------------- full-charge carry aura ----------------
    Layered over whatever pose Sable is in while a maxed shot is held:
-   spiraling inward particles, a pulsing pendant core, crackling arcs.
-   Streams backward with motion and stretches out during a dash. */
+   spiraling inward particles, a pulsing muzzle core, crackling arcs.
+   ALL of it gathers at the blaster muzzle of the displayed pose —
+   the chest / pendant carries no charge visual in any state. */
 function auraRand(seed){
   let s = seed >>> 0;
   return function(){
@@ -3872,76 +3885,83 @@ function auraRand(seed){
   };
 }
 function drawChargeAura(){
+  const mz = chargeMuzzlePoint();
+  if (!mz) return;   /* no blaster muzzle in this pose: no aura, no chest fallback */
   const t = stageTime;
-  const bx = P.x, by = P.y - 33;
-  const gx = P.x + P.face * 5, gy = P.y - 41;
+  const bx = mz.x, by = mz.y;
   const dashingNow = P.dashT > 0;
   const stretch = dashingNow ? 1.55 : (Math.abs(P.vx) > 30 ? 1.2 : 1);
-  const drift = -P.vx * 0.05 - (dashingNow ? P.dashDir * 10 : 0);
   const pulse = 0.5 + Math.sin(t * 7.3) * 0.5;
   ctx.save();
   ctx.translate(bx, by);
   ctx.scale(stretch, 1);
-  /* outer breathing glow */
-  const R = 40 + pulse * 9;
-  const grd = ctx.createRadialGradient(drift * 0.4, 0, 4, drift * 0.4, 0, R);
+  /* outer breathing glow, centred on the muzzle */
+  const R = 34 + pulse * 7;
+  const grd = ctx.createRadialGradient(0, 0, 4, 0, 0, R);
   grd.addColorStop(0, "rgba(125,243,255," + (0.20 + pulse * 0.10) + ")");
   grd.addColorStop(0.55, "rgba(53,224,255," + (0.10 + pulse * 0.05) + ")");
   grd.addColorStop(1, "rgba(53,224,255,0)");
   ctx.fillStyle = grd;
-  ctx.fillRect(drift * 0.4 - R, -R, R * 2, R * 2);
-  /* cyan-white particles spiraling inward toward the pendant */
+  ctx.fillRect(-R, -R, R * 2, R * 2);
+  /* cyan-white particles spiraling inward toward the muzzle */
   ctx.shadowColor = "#35e0ff"; ctx.shadowBlur = 6;
   for (let i = 0; i < 14; i++){
     const prog = (t * 0.85 + i * 0.371) % 1;
     const ang = i * 2.399 + t * 3.4 + prog * 2.4;
-    const r = 35 * (1 - prog) + 5;
-    const px = Math.cos(ang) * r * (1 - prog * 0.35) + (gx - bx) * prog + drift * (1 - prog);
-    const py = Math.sin(ang) * r * 0.88 * (1 - prog * 0.35) + (gy - by) * prog;
+    const r = 30 * (1 - prog) + 4;
+    const px = Math.cos(ang) * r * (1 - prog * 0.35);
+    const py = Math.sin(ang) * r * 0.88 * (1 - prog * 0.35);
     ctx.globalAlpha = 0.25 + prog * 0.75;
     ctx.fillStyle = prog > 0.72 ? "#ffffff" : "#7df3ff";
     const s = 1.6 + prog * 2.0;
     ctx.fillRect(px - s / 2, py - s / 2, s, s);
   }
   ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-  /* electric arcs snapping around him — re-rolled ~7x a second */
+  /* electric arcs snapping around the muzzle — re-rolled ~7x a second */
   const seed = Math.floor(t * 7);
   for (let k = 0; k < 2; k++){
     const rnd = auraRand(seed * 131 + k * 977 + 17);
-    const a0 = rnd() * Math.PI * 2, sweep = 0.8 + rnd() * 0.9, rr = 29 + rnd() * 11;
+    const a0 = rnd() * Math.PI * 2, sweep = 0.8 + rnd() * 0.9, rr = 23 + rnd() * 9;
     ctx.strokeStyle = "rgba(205,250,255,0.85)"; ctx.lineWidth = 1.4;
     ctx.shadowColor = "#7df3ff"; ctx.shadowBlur = 7;
     ctx.beginPath();
     for (let si = 0; si <= 5; si++){
       const a = a0 + sweep * (si / 5);
       const jr = rr + (si === 0 || si === 5 ? 0 : (rnd() - 0.5) * 11);
-      const px = Math.cos(a) * jr + drift * 0.6, py = Math.sin(a) * jr * 0.88;
+      const px = Math.cos(a) * jr, py = Math.sin(a) * jr * 0.88;
       if (si === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
     ctx.stroke();
   }
   ctx.shadowBlur = 0;
-  /* electric arc cluster sprite crackling over the aura, ~half the time */
+  /* electric arc cluster sprite crackling over the muzzle, ~half the time */
   if (IMG.fx && (t * 9 % 1) < 0.45){
     ctx.save();
     ctx.globalAlpha = 0.55;
-    const af = FX_FRAMES.fxarcs, asc = 88 / af.w;
-    ctx.drawImage(IMG.fx, af.x, af.y, af.w, af.h, (gx - bx) - af.w * asc / 2 + drift * 0.5, -af.h * asc / 2 - 6, af.w * asc, af.h * asc);
+    const af = FX_FRAMES.fxarcs, asc = 72 / af.w;
+    ctx.drawImage(IMG.fx, af.x, af.y, af.w, af.h, -af.w * asc / 2, -af.h * asc / 2 - 6, af.w * asc, af.h * asc);
     ctx.restore();
   }
-  /* pulsing glow core on the pendant */
+  /* pulsing glow core on the muzzle */
   const cr = 5.5 + Math.sin(t * 11) * 1.6;
   ctx.shadowColor = "#aef7ff"; ctx.shadowBlur = 18;
   ctx.fillStyle = "rgba(240,255,255,0.96)";
-  ctx.beginPath(); ctx.arc(gx - bx, gy - by, cr, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 0, cr, 0, 7); ctx.fill();
   ctx.shadowBlur = 0;
   ctx.strokeStyle = "rgba(125,243,255,0.75)"; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(gx - bx, gy - by, 10.5 + Math.sin(t * 9) * 2.4, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 10.5 + Math.sin(t * 9) * 2.4, 0, 7); ctx.stroke();
   ctx.restore();
 }
 function drawChargeBurst(){
   const k = 1 - Math.max(0, P.auraBurstT) / 0.28;
-  const gx = P.x + P.face * 5, gy = P.y - 41;
+  /* the burst stays where the charge actually left: the muzzle (or the
+     blade-beam origin) captured at release — never the pendant */
+  let gx = P.auraBurstX, gy = P.auraBurstY;
+  if (gx == null || gy == null){
+    const mz = chargeMuzzlePoint();
+    if (!mz) return;
+    gx = mz.x; gy = mz.y;
+  }
   ctx.save();
   ctx.globalAlpha = (1 - k) * 0.85;
   ctx.strokeStyle = "#aef7ff"; ctx.lineWidth = 2.4 - k * 1.4;
@@ -4145,23 +4165,31 @@ function drawWorld(){
         const sc = (fx.impact ? 74 : 108) / ff.w;
         drawSprite(IMG.sword, ff, fx.x, fx.y, sc, fx.face < 0, Math.max(0, 1 - fx.t / fx.dur));
       }
-      /* charge glow at the pendant */
+      /* charge glow at the BLASTER: the building orb sits on the muzzle
+         of the displayed pose, and its sparkles converge into that point.
+         The pendant/chest gets no charge glow at any charge level. */
       if (P.chargeT > 0.08){
-        const lvl = P.chargeT >= 1.1 ? 2 : (P.chargeT >= 0.5 ? 1 : 0);
-        const gx = P.x + P.face * 5, gy = P.y - 41;
-        const r = 4 + Math.min(13, P.chargeT * 11) + Math.sin(stageTime * 16) * 1.4;
-        ctx.save();
-        ctx.shadowColor = lvl === 2 ? "#ffffff" : "#35e0ff"; ctx.shadowBlur = 18;
-        ctx.fillStyle = lvl === 2 ? "rgba(230,255,255,0.95)" : "rgba(80,225,255,0.8)";
-        ctx.beginPath(); ctx.arc(gx, gy, r, 0, 7); ctx.fill();
-        ctx.shadowBlur = 0;
-        if (lvl === 2){
-          ctx.strokeStyle = "rgba(154,107,255,0.85)"; ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.arc(gx, gy, r + 6 + Math.sin(stageTime * 9) * 2, 0, 7); ctx.stroke();
+        const mz = chargeMuzzlePoint();
+        if (mz){
+          const lvl = P.chargeT >= 1.1 ? 2 : (P.chargeT >= 0.5 ? 1 : 0);
+          const gx = mz.x, gy = mz.y;
+          const r = 4 + Math.min(13, P.chargeT * 11) + Math.sin(stageTime * 16) * 1.4;
+          ctx.save();
+          ctx.shadowColor = lvl === 2 ? "#ffffff" : "#35e0ff"; ctx.shadowBlur = 18;
+          ctx.fillStyle = lvl === 2 ? "rgba(230,255,255,0.95)" : "rgba(80,225,255,0.8)";
+          ctx.beginPath(); ctx.arc(gx, gy, r, 0, 7); ctx.fill();
+          ctx.shadowBlur = 0;
+          if (lvl === 2){
+            ctx.strokeStyle = "rgba(154,107,255,0.85)"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(gx, gy, r + 6 + Math.sin(stageTime * 9) * 2, 0, 7); ctx.stroke();
+          }
+          ctx.restore();
+          if (Math.random() < 0.35){
+            const px = gx + (Math.random() - 0.5) * 26, py = gy + (Math.random() - 0.5) * 26;
+            particles.push({ x:px, y:py, vx:(gx - px) * 4, vy:(gy - py) * 4,
+              life:0.22, max:0.22, size:1.6, color:"#7df3ff", grav:0 });
+          }
         }
-        ctx.restore();
-        if (Math.random() < 0.35) particles.push({ x:gx + (Math.random() - 0.5) * 26, y:gy + (Math.random() - 0.5) * 26,
-          vx:(gx - (gx + (Math.random() - 0.5) * 26)) * 2, vy:-14, life:0.22, max:0.22, size:1.6, color:"#7df3ff", grav:0 });
       }
       /* full-charge carry aura, layered over the current pose in every state */
       if (P.fullCharge) drawChargeAura();
