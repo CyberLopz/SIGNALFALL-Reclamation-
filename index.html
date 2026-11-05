@@ -377,9 +377,19 @@ const CRAWLER_WALK = [
   { x:1024, y:304, w:512, h:304, ax:256, ay:39 }, { x:1536, y:304, w:512, h:304, ax:256, ay:35 }
 ];
 const CRAWLER_DEATH = [
-  { x:0,   y:608, w:512, h:304, ax:256, ay:38 },
-  { x:512, y:608, w:512, h:304, ax:256, ay:38 }
+  { x:0,    y:608, w:512, h:304, ax:256, ay:33 }, { x:512,  y:608, w:512, h:304, ax:256, ay:33 },
+  { x:1024, y:608, w:512, h:304, ax:256, ay:33 }, { x:1536, y:608, w:512, h:304, ax:256, ay:33 },
+  { x:0,    y:912, w:512, h:304, ax:256, ay:33 }, { x:512,  y:912, w:512, h:304, ax:256, ay:33 }
 ];
+/* PILOT 2 death: 6 frames over 0.5s — three generated poses (D1 buckle,
+   M1 half-collapse, D3 wreck) plus two crossfade in-betweens baked into
+   the atlas (D1->M1 at 50% rides frame 2; M1->D3 at 33% / 66% ride
+   frames 4 and 5), all dome-centred on the shared cell, feet on the
+   walk row's line. Then finalizeEnemyDeath's explosion takes over. */
+const CRAWLER_DEATH_T = 0.5;
+function crawlerDeathFrameAt(t01){
+  return Math.max(0, Math.min(CRAWLER_DEATH.length - 1, Math.floor(t01 * CRAWLER_DEATH.length)));
+}
 let CRAWLER_ATLAS_OK = false;
 let CRAWLER_LAST_PATH = "none";   /* harness-visible: "atlas" | "fallback" | "none" */
 const WRAITH2_FRAMES = {
@@ -603,6 +613,13 @@ async function loadAssets(){
     ["aegis", "assets/atlas-aegis-p3.png"],
     ["portraits", "assets/atlas-portraits-p3.png"],
     ["crawler", "assets/atlas-enemies-crawler.png"],
+    ["gtiles", "assets/tiles-gantry.png"],
+    ["gsky", "assets/bg-gantry-sky.png"],
+    ["gskyline", "assets/bg-gantry-skyline.png"],
+    ["gfog", "assets/bg-gantry-fog.png"],
+    ["gsmoke", "assets/fx-smoke-plumes.png"],
+    ["gcrane", "assets/prop-crane.png"],
+    ["gprops", "assets/props-gantry.png"],
     ["bg", "assets/bg-sector7.jpg"]
   ];
   /* all atlases load in parallel; the bar tracks completions */
@@ -610,6 +627,7 @@ async function loadAssets(){
   await Promise.all(jobs.map(([key, src]) => loadOne(key, src, key === "crawler" ? 2500 : 7000).then((ok) => {
     if (key === "sable") heroOk = ok;
     if (key === "crawler"){ CRAWLER_ATLAS_OK = ok; if (!ok) console.warn("atlas-enemies-crawler.png missing - crawler falls back to the ENEMY2 frames"); }
+    if (G2_NEED.indexOf(key) >= 0){ G2_GOT[key] = ok; GANTRY2_OK = G2_NEED.every((k) => G2_GOT[k]); if (!ok) console.warn(key + " missing - gantry keeps the pilot-1 code dressing"); }
     if (!ok) missing++;
     done++;
     fill.style.width = Math.round(done / jobs.length * 100) + "%";
@@ -2793,7 +2811,7 @@ function damageEnemy(e, dmg, dir, opts){
        D1 buckle -> code tween -> D3 collapse over 0.35s, driven by
        updateEnemies; finalizeEnemyDeath fires when the collapse ends.
        Without the sheet it takes the standard instant death below. */
-    if (e.type === "crawler" && e.dying == null && CRAWLER_ATLAS_OK && IMG.crawler){ e.dying = 0.35; return false; }
+    if (e.type === "crawler" && e.dying == null && CRAWLER_ATLAS_OK && IMG.crawler){ e.dying = CRAWLER_DEATH_T; return false; }
     finalizeEnemyDeath(e);
   }
   return false;
@@ -4349,35 +4367,53 @@ function drawSparts(){
 }
 function drawCheckpoint(c){
   const x = c.x, y = c.floorY;
+  /* PILOT 2 restyle: the checkpoint is a small RELAY BEACON prop — base
+     plate, mast, a housing with an amber/cyan lamp window and a stub
+     antenna. The pilot-1 glowing orb, its pulsing ring and its vertical
+     beam are gone everywhere (Ryan: no blue orb lamps). Trigger, flag
+     and respawn logic are untouched — this function only draws. In the
+     dressed gantry the housing is skinned from the tileset itself. */
   ctx.fillStyle = "#232a52"; ctx.fillRect(x - 10, y - 6, 20, 6);
-  ctx.fillStyle = "#39406e"; ctx.fillRect(x - 2, y - 56, 4, 52);
-  ctx.save();
-  if (c.active){
-    ctx.shadowColor = "#35e0ff"; ctx.shadowBlur = 14;
-    ctx.fillStyle = "#7df3ff";
-    ctx.beginPath(); ctx.arc(x, y - 62, 7, 0, 7); ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "rgba(53,224,255,0.7)"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(x, y - 62, 11 + Math.sin(stageTime * 4) * 2, 0, 7); ctx.stroke();
-    ctx.fillStyle = "rgba(53,224,255,0.10)"; ctx.fillRect(x - 1, y - 56, 2, 50);
+  ctx.fillStyle = "#39406e"; ctx.fillRect(x - 2, y - 52, 4, 48);
+  ctx.fillStyle = "#2c3358"; ctx.fillRect(x - 1, y - 62, 2, 10);   /* stub antenna */
+  const lit = c.active;
+  if (GANTRY2_OK && IMG.gtiles && GRAYBOX && sectionDressedAt(x, y)){
+    const hf = (lit && STORY.beacon) ? G2_TILES[7] : G2_TILES_DIM[7];
+    const sf = (lit && STORY.beacon) ? G2_TILES[0] : G2_TILES_DIM[0];
+    ctx.save(); ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(IMG.gtiles, hf.x, hf.y + 20, hf.w, 26, x - 9, y - 52, 18, 12);
+    ctx.drawImage(IMG.gtiles, sf.x, sf.y + 4, sf.w, 8, x - 9, y - 58, 18, 6);
+    ctx.restore();
   } else {
-    ctx.fillStyle = "#454c7d";
-    ctx.beginPath(); ctx.arc(x, y - 62, 6, 0, 7); ctx.fill();
-    ctx.fillStyle = "rgba(154,107,255," + (0.4 + Math.sin(stageTime * 2.4) * 0.25) + ")";
-    ctx.beginPath(); ctx.arc(x, y - 62, 2.5, 0, 7); ctx.fill();
+    ctx.fillStyle = "#1a1e38"; ctx.fillRect(x - 9, y - 52, 18, 12);
+    ctx.strokeStyle = "#39406e"; ctx.lineWidth = 1; ctx.strokeRect(x - 9.5, y - 52.5, 19, 13);
+    ctx.save();
+    if (lit){ ctx.shadowColor = "#35e0ff"; ctx.shadowBlur = 10; ctx.fillStyle = "#7df3ff"; }
+    else ctx.fillStyle = "rgba(154,107,255," + (0.45 + Math.sin(stageTime * 2.4) * 0.25) + ")";
+    ctx.fillRect(x - 5, y - 48, 10, 4);
+    ctx.restore();
   }
-  ctx.restore();
+  if (lit && gfxHigh){   /* a soft ground pool, not a beam */
+    const rg = ctx.createRadialGradient(x, y - 4, 2, x, y - 4, 30);
+    rg.addColorStop(0, "rgba(70,242,255,0.16)"); rg.addColorStop(1, "rgba(70,242,255,0)");
+    ctx.fillStyle = rg; ctx.fillRect(x - 30, y - 34, 60, 60);
+  }
 }
 function drawPickup(pk){
   const bobY = pk.y + Math.sin(stageTime * 3 + pk.ph) * 4;
   const kind = pk.kind || "cell";
+  /* PILOT 2: in the dressed gantry the pickup glow halo is suppressed —
+     with it, the floating cells read as blue orb lamps, which the
+     concept does not have. The sprite and its bob are unchanged. */
+  const dressedPk = GRAYBOX && sectionDressedAt(pk.x, pk.y);
   /* every item floats over the shared pickup glow */
-  if (IMG.fx){
+  if (IMG.fx && !dressedPk){
     const gf = FX_FRAMES.fxglow, gs = 52 / gf.w;
     ctx.save();
     ctx.globalAlpha = 0.5 + Math.sin(stageTime * 4 + pk.ph) * 0.18;
     ctx.drawImage(IMG.fx, gf.x, gf.y, gf.w, gf.h, pk.x - 26, bobY - 24, 52, gf.h * gs);
     ctx.restore();
+    G2.orbGlow++;
   }
   if (IMG.items){
     const spr = kind === "cell" ? (pk.big ? "cellL" : "cellS")
@@ -4387,11 +4423,18 @@ function drawPickup(pk){
       const targetH = kind === "coretank" ? 42 : kind === "heart" ? 38 : kind === "mystery" ? 36 : kind === "chip" ? 34 : (pk.big ? 34 : 24);
       const sc = targetH / f.h;
       ctx.save();
-      ctx.shadowColor = kind === "shard" ? "#9a6bff" : "#35e0ff"; ctx.shadowBlur = 10;
+      ctx.shadowColor = kind === "shard" ? "#9a6bff" : "#35e0ff"; ctx.shadowBlur = dressedPk ? 0 : 10;
       ctx.drawImage(IMG.items, f.x, f.y, f.w, f.h, pk.x - f.w * sc / 2, bobY - f.h * sc / 2, f.w * sc, f.h * sc);
       ctx.restore();
       return;
     }
+  }
+  if (dressedPk){   /* no orb fallback in the gantry: a plain canister cell */
+    G2.orbFallback++;
+    ctx.fillStyle = "#2a3358"; ctx.fillRect(pk.x - 5, bobY - 8, 10, 16);
+    ctx.fillStyle = STORY.beacon ? "#46f2ff" : "#2e7f96"; ctx.fillRect(pk.x - 5, bobY - 8, 10, 3);
+    ctx.fillStyle = "#7d8cb3"; ctx.fillRect(pk.x - 2, bobY + 2, 4, 3);
+    return;
   }
   const r = pk.big ? 11 : 7;
   ctx.save();
@@ -4516,6 +4559,49 @@ function drawChargeBurst(){
    of stageTime (elapsed seconds) with a per-prop phase — nothing here
    counts frames, and nothing pulses in sync with anything else. */
 function gantryHash(n){ let h = (n * 2654435761) >>> 0; h ^= h >>> 13; h = (h * 1274126177) >>> 0; return (h ^ (h >>> 16)) >>> 0; }
+/* ================= PILOT 2: GENERATED-ASSET GANTRY =================
+   The gantry's dressing is rebuilt from generated pixel-art assets, all
+   mapped onto ONE palette sampled from the concept (palette.json) and
+   normalized to ONE pixel unit: U = 1.11 screen px per art px
+   (the concept's 4px grid at Sable's render scale, 96/346). Every asset
+   below is drawn with smoothing off at art x U, so no layer reads finer
+   or chunkier than its neighbours. If any core asset fails to load,
+   GANTRY2_OK stays false and the pilot-1 code dressing runs instead —
+   the same missing-file contract as the crawler atlas. */
+const G2_U = 1.11;
+const G2_NEED = ["gtiles", "gsky", "gskyline", "gcrane", "gprops"];
+const G2_GOT = {};
+let GANTRY2_OK = false;
+const G2 = { tiles:0, sky:0, skyline:0, fog:0, smoke:0, lampSprites:0, orbGlow:0, orbFallback:0, legacySky:0, legacyPlatform:0, legacyBack:0, legacyFront:0 };
+const TILE_ART = 68, TILE_DEST = 76;
+const G2_TILES = { 0:{x:0,y:0,w:68,h:68}, 1:{x:68,y:0,w:68,h:68}, 2:{x:136,y:0,w:68,h:68}, 3:{x:204,y:0,w:68,h:68}, 4:{x:0,y:68,w:68,h:68}, 5:{x:68,y:68,w:68,h:68}, 6:{x:136,y:68,w:68,h:68}, 7:{x:204,y:68,w:68,h:68}, 8:{x:0,y:136,w:68,h:68}, 9:{x:68,y:136,w:68,h:68}, 10:{x:136,y:136,w:68,h:68}, 11:{x:204,y:136,w:68,h:68} };
+const G2_TILES_DIM = { 0:{x:0,y:204,w:68,h:68}, 1:{x:68,y:204,w:68,h:68}, 2:{x:136,y:204,w:68,h:68}, 3:{x:204,y:204,w:68,h:68}, 4:{x:0,y:272,w:68,h:68}, 5:{x:68,y:272,w:68,h:68}, 6:{x:136,y:272,w:68,h:68}, 7:{x:204,y:272,w:68,h:68}, 8:{x:0,y:340,w:68,h:68}, 9:{x:68,y:340,w:68,h:68}, 10:{x:136,y:340,w:68,h:68}, 11:{x:204,y:340,w:68,h:68} };
+const G2_PROPS = { lamp:{x:0,y:200,w:20,h:97}, tower:{x:32,y:0,w:95,h:297}, vent:{x:139,y:103,w:116,h:194}, walkway:{x:279,y:196,w:689,h:101} };
+const G2_SKY = { w:1134, h:486 };
+const G2_SKYLINE = { w:1351, h:227, stacks:[[108, 4], [424, 47], [854, 50], [1227, 5]] };
+const G2_FOG = { w:1170, h:153, bands:3 };
+const G2_SMOKE = { w:99, h:171, frames:5 };
+const G2_CRANE = { w:210, h:423 };
+/* darkened distance variants, rendered once from the loaded sprites */
+const g2TintCache = {};
+function g2Tinted(img, key, hex, alpha){
+  if (!img) return null;
+  const ck = key + "|" + hex + "|" + alpha;
+  if (g2TintCache[ck]) return g2TintCache[ck];
+  try {
+    const cv = document.createElement("canvas");
+    cv.width = img.naturalWidth || img.width; cv.height = img.naturalHeight || img.height;
+    const c = cv.getContext("2d");
+    c.drawImage(img, 0, 0);
+    c.globalCompositeOperation = "source-atop";
+    c.globalAlpha = alpha; c.fillStyle = hex; c.fillRect(0, 0, cv.width, cv.height);
+    g2TintCache[ck] = cv; return cv;
+  } catch (err) { return img; }
+}
+function g2Frame(img, f, dx, dy, dw, dh){
+  ctx.drawImage(img, f.x, f.y, f.w, f.h, dx, dy, dw, dh);
+}
+
 function gantryLampLevel(){ return STORY.beacon ? 1 : 0; }   /* 0 = pre-relight (amber lamps, dim strips), 1 = post-relight */
 
 /* --- sky: MAP-palette dusk gradient, twinkling star field, two
@@ -4560,6 +4646,84 @@ function buildGantrySkyline(cv, base, jag, seed, crane, ruin){
   }
 }
 function drawGantrySky(){
+  if (GANTRY2_OK && IMG.gsky && IMG.gskyline){ drawGantrySkyAssets(); return; }
+  G2.legacySky++;
+  drawGantrySkyLegacy();
+}
+function drawGantrySkyAssets(){
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  const horizon = 478 - camY;   /* skyline bases sit just under the gantry floor line */
+  /* far sky plate: full bleed, parallax 0.15, tiled horizontally */
+  {
+    const dw = G2_SKY.w * G2_U, dh = VH;
+    let off = -((camX * 0.15) % dw); if (off > 0) off -= dw;
+    for (let gx = off; gx < VW; gx += dw){ ctx.drawImage(IMG.gsky, gx, 0, dw, dh); G2.sky++; }
+  }
+  /* ruined skyline, parallax 0.4, bottom-anchored at the horizon */
+  const slDw = G2_SKYLINE.w * G2_U, slDh = G2_SKYLINE.h * G2_U;
+  let slOff = -((camX * 0.4) % slDw); if (slOff > 0) slOff -= slDw;
+  const slBaseY = horizon + 8;
+  for (let gx = slOff; gx < VW; gx += slDw){ ctx.drawImage(IMG.gskyline, gx, slBaseY - slDh, slDw, slDh); G2.skyline++; }
+  /* animated smoke: plume sprites cycling over the skyline's stack tops,
+     rising + expanding + fading on elapsed time, per-stack phases */
+  if (gfxHigh && IMG.gsmoke){
+    for (let gx = slOff; gx < VW; gx += slDw){
+      for (let si = 0; si < G2_SKYLINE.stacks.length; si++){
+        const st = G2_SKYLINE.stacks[si];
+        const ax = gx + st[0] * G2_U, ay = slBaseY - slDh + st[1] * G2_U;
+        if (ax < -140 || ax > VW + 140) continue;
+        for (let j = 0; j < 3; j++){
+          const age = (stageTime * 0.11 + si * 0.37 + j / 3) % 1;
+          const fi = Math.min(G2_SMOKE.frames - 1, Math.floor(age * G2_SMOKE.frames));
+          const sc = (0.55 + age * 1.05) * G2_U;
+          const pw = G2_SMOKE.w * sc, ph = G2_SMOKE.h * sc;
+          ctx.globalAlpha = Math.sin(age * Math.PI) * 0.5;
+          ctx.drawImage(IMG.gsmoke, fi * G2_SMOKE.w, 0, G2_SMOKE.w, G2_SMOKE.h,
+            ax - pw / 2 + age * 26, ay - ph - age * 118, pw, ph);
+          G2.smoke++;
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  /* fog banks: luminance-alpha strips drifting between skyline and
+     structures (parallax 0.55), screen-blended, never code ellipses */
+  if (gfxHigh && IMG.gfog){
+    ctx.globalCompositeOperation = "screen";
+    for (let i = 0; i < G2_FOG.bands; i++){
+      const dw = G2_FOG.w * G2_U, dh = G2_FOG.h * G2_U;
+      const drift = stageTime * (3.2 + i * 1.9) + i * 431;
+      let off = -(((camX * 0.55 + drift) % dw) + dw) % dw; if (off > 0) off -= dw;
+      ctx.globalAlpha = 0.20 - i * 0.045;
+      for (let gx = off; gx < VW; gx += dw){
+        ctx.drawImage(IMG.gfog, 0, i * G2_FOG.h, G2_FOG.w, G2_FOG.h, gx, horizon - 168 - i * 38, dw, dh);
+        G2.fog++;
+      }
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  }
+  /* mid-distance structures (parallax 0.6): girder towers + walkway
+     segments behind the gameplay plane, darkened toward silhouette */
+  if (IMG.gprops){
+    const mid = g2Tinted(IMG.gprops, "props", "#12142e", 0.55) || IMG.gprops;
+    const par = 0.6, period = 2500;
+    const towers = [120, 1750], walks = [[420, 46], [1330, 70], [2050, 30]];
+    ctx.globalAlpha = 0.88;
+    for (const mx of towers){
+      const f = G2_PROPS.tower, dw = f.w * G2_U, dh = f.h * G2_U;
+      let sx = mx - ((camX * par) % period); if (sx < -dw) sx += period; if (sx > VW + period) sx -= period;
+      for (let gx = sx - period; gx < VW; gx += period) ctx.drawImage(mid, f.x, f.y, f.w, f.h, gx, horizon + 4 - dh, dw, dh);
+    }
+    for (const wk of walks){
+      const f = G2_PROPS.walkway, dw = f.w * (G2_U * 0.9), dh = f.h * (G2_U * 0.9);
+      let sx = wk[0] - ((camX * par) % period); if (sx < -dw) sx += period;
+      for (let gx = sx - period; gx < VW; gx += period) ctx.drawImage(mid, f.x, f.y, f.w, f.h, gx, horizon - wk[1] - dh, dw, dh);
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+function drawGantrySkyLegacy(){
   if (!gantrySkyGrad){
     gantrySkyGrad = ctx.createLinearGradient(0, 0, 0, VH);
     gantrySkyGrad.addColorStop(0, "#3d4a7d"); gantrySkyGrad.addColorStop(0.45, "#596c9c");
@@ -4604,6 +4768,56 @@ function drawGantrySky(){
 /* --- platform skin: stepped violet-circuit blocks. Everything drawn
    stays INSIDE the solid's rect, so the visible block IS the collision. --- */
 function drawGantryPlatform(s){
+  if (GANTRY2_OK && IMG.gtiles){ drawGantryPlatformTiles(s); return; }
+  G2.legacyPlatform++;
+  drawGantryPlatformLegacy(s);
+}
+/* tileset skin: the solid's rect is a window into a per-solid tile grid
+   (cell 76 game px = 68 art px x U). Top row wears the lip/strip tiles,
+   exposed ends the riveted edge columns, the last row the under-lip,
+   faces rotate by hash through the slot/hatch/circuit variants with the
+   cracked tile rare. Partial cells clip by source sub-rect, so nothing
+   ever stretches and nothing pokes outside the collision rect. Pre-
+   relight the DIM atlas (strip cyan remapped to dark teal) is used;
+   post-relight the bright one, under the existing beaconFlash wash. */
+function drawGantryPlatformTiles(s){
+  const x = s.x, y = s.y, w = s.w, h = s.h;
+  const frames = STORY.beacon ? G2_TILES : G2_TILES_DIM;
+  const hash0 = gantryHash((x * 31 + y * 7 + w) | 0);
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  const cols = Math.ceil(w / TILE_DEST), rows = Math.ceil(h / TILE_DEST);
+  for (let r = 0; r < rows; r++){
+    for (let c = 0; c < cols; c++){
+      const dx = x + c * TILE_DEST, dy = y + r * TILE_DEST;
+      const dw = Math.min(TILE_DEST, x + w - dx), dh = Math.min(TILE_DEST, y + h - dy);
+      if (dw <= 0 || dh <= 0) continue;
+      const hh = gantryHash(hash0 + r * 131 + c * 17);
+      let ti;
+      if (r === 0){
+        const roll = hh % 12;
+        ti = roll < 5 ? 0 : roll < 9 ? 1 : roll < 11 ? 2 : 3;   /* strip / split / plain lip / step */
+        if (s.isMover) ti = roll % 2;                            /* movers stay clean strip tiles */
+      } else if (r === rows - 1) ti = 10;                        /* under-lip */
+      else if (c === 0) ti = 8;                                  /* left edge column */
+      else if (c === cols - 1) ti = 9;                           /* right edge column */
+      else {
+        const roll = hh % 16;
+        ti = roll < 4 ? 4 : roll < 8 ? 5 : roll < 11 ? 6 : roll < 14 ? 7 : roll < 15 ? 11 : 5;
+      }
+      const f = frames[ti];
+      ctx.drawImage(IMG.gtiles, f.x, f.y, f.w * (dw / TILE_DEST), f.h * (dh / TILE_DEST), dx, dy, dw, dh);
+      G2.tiles++;
+    }
+  }
+  ctx.restore();
+  if (s.isMover){   /* movers keep the pilot-1 machinery tell: amber chevrons at the base */
+    ctx.fillStyle = "#ffb37d";
+    for (let mx = x + 12; mx < x + w - 8; mx += 22){
+      ctx.beginPath(); ctx.moveTo(mx, y + h - 6); ctx.lineTo(mx + 6, y + h - 11); ctx.lineTo(mx + 12, y + h - 6); ctx.closePath(); ctx.fill();
+    }
+  }
+}
+function drawGantryPlatformLegacy(s){
   const x = s.x, y = s.y, w = s.w, h = s.h;
   const g = ctx.createLinearGradient(0, y, 0, y + Math.min(h, 190));
   g.addColorStop(0, "#322a58"); g.addColorStop(0.25, "#221c44"); g.addColorStop(1, "#100e28");
@@ -4660,6 +4874,38 @@ function drawGantryPlatform(s){
    with its swaying chain and hook --- */
 let gantrySmokeT = -9;
 function drawGantryBack(){
+  if (GANTRY2_OK && IMG.gcrane && IMG.gprops){ drawGantryBackAssets(); return; }
+  G2.legacyBack++;
+  drawGantryBackLegacy();
+}
+/* sprite structures on the gameplay plane: the hero crane framing the
+   west with its jib across the top (baked cable + hook in the art), a
+   second crane east, smaller and darkened into the dusk, and the vent +
+   antenna units standing on the deck. No code-drawn towers or chains. */
+function drawGantryBackAssets(){
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  /* far crane east: same sprite, distance-darkened, alpha down */
+  const far = g2Tinted(IMG.gcrane, "crane", "#14162e", 0.5) || IMG.gcrane;
+  {
+    const dh = 315, dw = dh * (G2_CRANE.w / G2_CRANE.h);
+    ctx.globalAlpha = 0.82;
+    ctx.drawImage(far, 3590, 470 - dh, dw, dh);
+    ctx.globalAlpha = 1;
+  }
+  /* hero crane west: anchored so its jib crosses the top of the view;
+     the base machinery sits below the deck line, occluded by the floor
+     face the solids pass draws over this back layer */
+  {
+    const dh = G2_CRANE.h * G2_U, dw = G2_CRANE.w * G2_U;
+    ctx.drawImage(IMG.gcrane, 1952, 600 - dh, dw, dh);
+  }
+  /* vent + antenna props on the deck (back layer: Sable plays in front) */
+  const vent = G2_PROPS.vent;
+  ctx.drawImage(IMG.gprops, vent.x, vent.y, vent.w, vent.h, 3360, 470 - vent.h * G2_U * 0.72, vent.w * G2_U * 0.72, vent.h * G2_U * 0.72);
+  ctx.drawImage(IMG.gprops, vent.x, vent.y, vent.w, vent.h, 2264, 470 - vent.h * G2_U * 0.5, vent.w * G2_U * 0.5, vent.h * G2_U * 0.5);
+  ctx.restore();
+}
+function drawGantryBackLegacy(){
   ctx.save();
   ctx.globalAlpha = 0.45; ctx.fillStyle = "#232a52";   /* distant second crane, faded into the dusk */
   ctx.fillRect(3652, 96, 14, 374); ctx.fillRect(3560, 82, 380, 10); ctx.fillRect(3536, 82, 30, 20);
@@ -4704,10 +4950,49 @@ function drawGantryBack(){
 /* --- front layer (after solids, before enemies): the beacon relight
    wash, loose sagging cables, the amber post lamps --- */
 const GANTRY_LAMPS = [
-  { x:2185, base:470, h:64 }, { x:2405, base:352, h:44 }, { x:2835, base:470, h:64 },
-  { x:3190, base:470, h:64 }, { x:3765, base:470, h:64 }
+  { x:2095, base:470 }, { x:2185, base:470 }, { x:2405, base:352 }, { x:2540, base:470 },
+  { x:2680, base:300 }, { x:2835, base:470 }, { x:3190, base:470 }, { x:3450, base:470 },
+  { x:3765, base:470 }, { x:3955, base:470 }
 ];
 function drawGantryFront(){
+  if (GANTRY2_OK && IMG.gprops){ drawGantryFrontAssets(); return; }
+  G2.legacyFront++;
+  drawGantryFrontLegacy();
+}
+/* front layer, asset build: the relight wash (unchanged) + lamp-post
+   SPRITES at concept density. The warm radial pool is glow only — the
+   lamp itself is the generated sprite — and each lamp flickers on its
+   own elapsed-time phases. Performance mode drops the pools, keeps the
+   sprites. No code post, no orb bulb, no sagging cable shapes. */
+function drawGantryFrontAssets(){
+  if (beaconFlash > 0.02){   /* the relight wash rolls east off CP1 on the beaconFlash clock */
+    const wx = 2900 + (1 - beaconFlash) * 1150;
+    const wg = ctx.createLinearGradient(wx - 190, 0, wx + 190, 0);
+    wg.addColorStop(0, "rgba(125,243,255,0)");
+    wg.addColorStop(0.5, "rgba(125,243,255," + (0.20 * beaconFlash) + ")");
+    wg.addColorStop(1, "rgba(125,243,255,0)");
+    ctx.fillStyle = wg; ctx.fillRect(wx - 190, 60, 380, 470);
+  }
+  const f = G2_PROPS.lamp, dw = f.w * G2_U, dh = f.h * G2_U;
+  const headDy = dh * 0.055;   /* the caged lamp head sits at the sprite's top */
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  for (let i = 0; i < GANTRY_LAMPS.length; i++){
+    const L = GANTRY_LAMPS[i], topY = L.base - dh, headY = topY + headDy;
+    const fl = 0.78 + 0.14 * Math.sin(stageTime * 11 + i * 2.7) + 0.08 * Math.sin(stageTime * 23 + i * 5.3);
+    if (gfxHigh){
+      const rg = ctx.createRadialGradient(L.x, headY, 2, L.x, headY, 46);
+      rg.addColorStop(0, "rgba(255,178,92," + (0.34 * fl) + ")"); rg.addColorStop(1, "rgba(255,178,92,0)");
+      ctx.fillStyle = rg; ctx.fillRect(L.x - 46, headY - 46, 92, 92);
+      ctx.fillStyle = "rgba(255,170,80," + (0.13 * fl) + ")";
+      ctx.beginPath(); ctx.ellipse(L.x, L.base - 2, 30, 6, 0, 0, 7); ctx.fill();
+    }
+    ctx.drawImage(IMG.gprops, f.x, f.y, f.w, f.h, L.x - dw / 2, topY, dw, dh);
+    G2.lampSprites++;
+  }
+  ctx.restore();
+}
+function drawGantryFrontLegacy(){
+
   if (beaconFlash > 0.02){   /* the relight wash rolls east off CP1 on the beaconFlash clock */
     const wx = 2900 + (1 - beaconFlash) * 1150;
     const wg = ctx.createLinearGradient(wx - 190, 0, wx + 190, 0);
@@ -4770,9 +5055,10 @@ function drawCrawler(e){
   if (CRAWLER_ATLAS_OK && IMG.crawler){
     CRAWLER_LAST_PATH = "atlas";
     if (e.dying != null){
-      const t = 1 - Math.max(0, e.dying) / 0.35;   /* 0..1 over the collapse */
-      if (t < 0.45){ const k = t / 0.45; drawCrawlerSprite(e, CRAWLER_DEATH[0], 0, k * 3, k * 0.05); }
-      else { const k = (t - 0.45) / 0.55; drawCrawlerSprite(e, CRAWLER_DEATH[1], 0, 3 + k * 2, 0.05 - k * 0.02); }
+      const t = 1 - Math.max(0, e.dying) / CRAWLER_DEATH_T;   /* 0..1 over the 0.5s collapse */
+      const f = CRAWLER_DEATH[crawlerDeathFrameAt(t)];
+      /* settle: a 3px sink across the sequence + a buckle wobble that dies out */
+      drawCrawlerSprite(e, f, 0, t * 3, Math.sin(Math.min(1, t * 1.2) * Math.PI) * 0.045);
       return;
     }
     const f = CRAWLER_WALK[crawlerFrameAt(e, stageTime).idx];
@@ -5480,6 +5766,7 @@ function drawHUD(){
   ctx.fillStyle = v; ctx.fillRect(0, 0, VW, VH);
 }
 function render(){
+  G2.tiles = 0; G2.sky = 0; G2.skyline = 0; G2.fog = 0; G2.smoke = 0; G2.lampSprites = 0;
   drawBackground();
   drawWorld();
   if (!GRAYBOX) drawForeground();
