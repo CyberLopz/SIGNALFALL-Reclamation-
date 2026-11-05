@@ -97,6 +97,32 @@
   .clearstats{ font-family:"Orbitron",sans-serif; font-size:clamp(15px,2.6vw,22px); letter-spacing:.14em; margin:8px 0 2px; }
   .clearstats span{ color:var(--cyan); }
   .nextnote{ color:var(--violet); font-family:"Orbitron",sans-serif; letter-spacing:.3em; font-size:clamp(11px,2vw,15px); margin:14px 0 24px; }
+  .btnrow{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; align-items:center; }
+  .textlink{ cursor:pointer; text-decoration:underline; color:var(--dim); font-weight:600; font-size:clamp(12px,1.8vw,15px); }
+  .textlink:hover{ color:var(--cyan); }
+
+  /* ---------- settings panel ---------- */
+  .setpanel{
+    display:flex; flex-direction:column; gap:9px; width:min(440px,94%);
+    margin:14px 0 16px; max-height:44vh; overflow-y:auto; padding:2px 4px;
+  }
+  .setsub{
+    font-family:"Orbitron",sans-serif; font-size:clamp(10px,1.5vw,12px); letter-spacing:.3em;
+    color:var(--violet); text-transform:uppercase; margin:8px 0 0; text-align:left;
+  }
+  .setrow{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  .setrow .setlabel{
+    font-family:"Orbitron",sans-serif; font-size:clamp(11px,1.8vw,13px); letter-spacing:.1em;
+    color:var(--dim); text-align:left; flex:0 0 auto;
+  }
+  .setrow input[type=range]{ flex:1; max-width:220px; accent-color:var(--cyan); }
+  .pillbtn{
+    font-family:"Orbitron",sans-serif; font-weight:700; letter-spacing:.08em; font-size:clamp(11px,1.7vw,13px);
+    color:var(--ink); background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:6px;
+    padding:7px 14px; cursor:pointer; min-width:96px;
+  }
+  .pillbtn:hover{ border-color:var(--cyan-dim); color:var(--cyan); }
+  .pillbtn.listening{ color:var(--cyan); border-color:var(--cyan); animation:pulse 1s ease-in-out infinite; }
 
   /* ---------- touch controls (gameplay only) ---------- */
   #touch{ position:absolute; inset:0; z-index:15; pointer-events:none; display:none; }
@@ -160,9 +186,13 @@
     <h1 class="title">RECLA<span class="violet">MATION</span></h1>
     <p class="stageline">CHAPTER 1 — FIRST SIGNAL</p>
     <p class="flavor">“The records lie. The relay still screams.”</p>
-    <button class="bigbtn" id="btnStart" disabled>PRESS START</button>
+    <div class="btnrow">
+      <button class="bigbtn hidden" id="btnContinue">CONTINUE</button>
+      <button class="bigbtn" id="btnStart" disabled>PRESS START</button>
+    </div>
     <div class="loadbar"><div id="loadFill"></div></div>
     <div class="loadmsg" id="loadMsg">LOADING SPRITES…</div>
+    <p style="margin-top:12px"><span class="textlink" id="btnSettingsTitle">Settings</span></p>
     <div class="controls">
       <div class="row"><span><b>WASD</b>/<b>←→↑↓</b> move</span><span><b>SPACE</b> jump</span></div>
       <div class="row"><span><b>J</b> dash</span><span><b>K</b> sword</span><span><b>L</b> blaster (hold to charge · aim ↑/↓)</span></div>
@@ -188,7 +218,10 @@
       <div class="row"><span style="font-size:.86em">Legacy keys: <b>Z</b> jump · <b>X</b> sword · <b>C</b> dash · <b>V</b> blaster · <b>SHIFT</b> dash</span></div>
       <div class="row"><span style="font-size:.86em">Gamepad: <b>A</b> jump · <b>B</b>/<b>RB</b> dash · <b>X</b> blaster · <b>Y</b>/<b>LB</b> sword · <b>START</b> pause · <b>SELECT</b> music</span><span style="font-size:.86em"><b>M</b> music · <b>G</b> graphics</span></div>
     </div>
-    <div class="controls"><div class="row"><span id="btnRestart" style="cursor:pointer;text-decoration:underline">Restart stage</span></div></div>
+    <div class="controls"><div class="row">
+      <span class="textlink" id="btnRestart">Restart stage</span>
+      <span class="textlink" id="btnSettingsPause">Settings</span>
+    </div></div>
   </div>
 
   <!-- CLEAR -->
@@ -198,8 +231,29 @@
     <h1 class="title" style="font-size:clamp(24px,4.8vw,46px)">SIGNAL RESTORED<br /><span class="violet">CHAPTER 1 COMPLETE</span></h1>
     <p class="clearstats">CLEAR TIME <span id="clearTime">0:00</span></p>
     <p class="clearstats">SHARDS <span id="clearShards">◆ 0</span> · DATA <span id="clearData">0/3</span></p>
+    <p class="clearstats">BEST <span id="clearBest">0:00</span></p>
     <p class="nextnote">CHAPTER 2 — IN PRODUCTION</p>
     <button class="bigbtn" id="btnAgain">RUN IT AGAIN</button>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="overlay hidden" id="ovSettings">
+    <p class="kicker">System</p>
+    <h1 class="title" style="font-size:clamp(22px,4.2vw,38px)">SETTINGS</h1>
+    <div class="setpanel">
+      <p class="setsub">Audio</p>
+      <div class="setrow"><span class="setlabel">MUSIC VOL</span><input type="range" id="setMusicVol" min="0" max="100" value="100" /></div>
+      <div class="setrow"><span class="setlabel">SFX VOL</span><input type="range" id="setSfxVol" min="0" max="100" value="100" /></div>
+      <p class="setsub">Display</p>
+      <div class="setrow"><span class="setlabel">SCREEN SHAKE</span><button class="pillbtn" id="setShakeBtn">ON</button></div>
+      <div class="setrow"><span class="setlabel">GRAPHICS</span><button class="pillbtn" id="setGfxBtn">FULL</button></div>
+      <p class="setsub">Controls — click, then press a key</p>
+      <div class="setrow"><span class="setlabel">JUMP</span><button class="pillbtn" id="rebind_jump" data-action="jump">SPACE</button></div>
+      <div class="setrow"><span class="setlabel">DASH</span><button class="pillbtn" id="rebind_dash" data-action="dash">J</button></div>
+      <div class="setrow"><span class="setlabel">SWORD</span><button class="pillbtn" id="rebind_slash" data-action="slash">K</button></div>
+      <div class="setrow"><span class="setlabel">BLASTER</span><button class="pillbtn" id="rebind_shot" data-action="shot">L</button></div>
+    </div>
+    <button class="bigbtn" id="btnSettingsClose">BACK</button>
   </div>
 
   <!-- TOUCH -->
@@ -648,6 +702,10 @@ function buildMidLayer(){
 let AC = null, muted = false, chargeOsc = null, chargeGain = null;
 let musicOn = true;
 try { musicOn = localStorage.getItem("sf_music") !== "0"; } catch(e){}
+/* settings-panel volume sliders, 0..1, independently of the musicOn/muted toggles */
+let musicVol = 1, sfxVol = 1;
+try { const v = parseFloat(localStorage.getItem("sf_music_vol")); if (!isNaN(v)) musicVol = clamp(v, 0, 1); } catch(e){}
+try { const v = parseFloat(localStorage.getItem("sf_sfx_vol")); if (!isNaN(v)) sfxVol = clamp(v, 0, 1); } catch(e){}
 const BUS = {};
 let NOISE_BUF = null;
 function audio(){
@@ -674,9 +732,9 @@ function buildMixer(){
   BUS.comp.ratio.setValueAtTime(5, t); BUS.comp.attack.setValueAtTime(0.004, t); BUS.comp.release.setValueAtTime(0.16, t);
   BUS.master = AC.createGain(); BUS.master.gain.setValueAtTime(muted ? 0 : 0.9, t);
   BUS.master.connect(BUS.comp).connect(AC.destination);
-  BUS.sfx = AC.createGain(); BUS.sfx.gain.setValueAtTime(1, t); BUS.sfx.connect(BUS.master);
+  BUS.sfx = AC.createGain(); BUS.sfx.gain.setValueAtTime(sfxVol, t); BUS.sfx.connect(BUS.master);
   /* music: duck gain (dialogue / death) -> lowpass (pause muffle) -> user gain */
-  BUS.music = AC.createGain(); BUS.music.gain.setValueAtTime(musicOn ? 0.55 : 0, t);
+  BUS.music = AC.createGain(); BUS.music.gain.setValueAtTime(musicOn ? 0.55 * musicVol : 0, t);
   BUS.musicDuck = AC.createGain(); BUS.musicDuck.gain.setValueAtTime(1, t);
   BUS.musicLP = AC.createBiquadFilter(); BUS.musicLP.type = "lowpass";
   BUS.musicLP.frequency.setValueAtTime(18000, t); BUS.musicLP.Q.setValueAtTime(0.5, t);
@@ -851,7 +909,18 @@ function setMuted(m){
 function setMusicOn(on){
   musicOn = on;
   try { localStorage.setItem("sf_music", on ? "1" : "0"); } catch(e){}
-  if (BUS.music) BUS.music.gain.setTargetAtTime(on ? 0.55 : 0, AC.currentTime, 0.08);
+  if (BUS.music) BUS.music.gain.setTargetAtTime(on ? 0.55 * musicVol : 0, AC.currentTime, 0.08);
+}
+/* settings-panel sliders — wired straight to the BUS.music / BUS.sfx gain nodes */
+function setMusicVol(v){
+  musicVol = clamp(v, 0, 1);
+  try { localStorage.setItem("sf_music_vol", String(musicVol)); } catch(e){}
+  if (BUS.music) BUS.music.gain.setTargetAtTime(musicOn ? 0.55 * musicVol : 0, AC.currentTime, 0.05);
+}
+function setSfxVol(v){
+  sfxVol = clamp(v, 0, 1);
+  try { localStorage.setItem("sf_sfx_vol", String(sfxVol)); } catch(e){}
+  if (BUS.sfx) BUS.sfx.gain.setTargetAtTime(sfxVol, AC.currentTime, 0.05);
 }
 
 /* ---------------- adaptive music ----------------
@@ -1047,6 +1116,44 @@ const KEYMAP = {
   KeyJ:"dash", ShiftLeft:"dash", ShiftRight:"dash", KeyC:"dash",
   KeyL:"shot", KeyV:"shot"
 };
+/* rebindable action keys — jump / dash / sword(slash) / blaster(shot) only.
+   Movement and the legacy alternates above (Z/X/C/V/Shift) are never touched by a
+   rebind: only each action's single "primary" code (below) can be reassigned, so a
+   custom bind always has the legacy key as a fallback. */
+const DEFAULT_BINDS = { jump:"Space", dash:"KeyJ", slash:"KeyK", shot:"KeyL" };
+let REBINDS = Object.assign({}, DEFAULT_BINDS);
+try {
+  const saved = JSON.parse(localStorage.getItem("sf_binds") || "null");
+  if (saved && typeof saved === "object"){
+    for (const action in DEFAULT_BINDS) if (typeof saved[action] === "string") REBINDS[action] = saved[action];
+  }
+} catch(e){}
+for (const action in REBINDS){
+  const def = DEFAULT_BINDS[action];
+  if (REBINDS[action] !== def) delete KEYMAP[def];
+  KEYMAP[REBINDS[action]] = action;
+}
+function rebindAction(action, code){
+  if (!(action in DEFAULT_BINDS) || !code) return false;
+  const old = REBINDS[action];
+  if (old && KEYMAP[old] === action) delete KEYMAP[old];
+  KEYMAP[code] = action;
+  REBINDS[action] = code;
+  try { localStorage.setItem("sf_binds", JSON.stringify(REBINDS)); } catch(e){}
+  return true;
+}
+/* human-readable label for an e.code, used by the settings panel */
+function keyLabel(code){
+  if (!code) return "—";
+  if (code === "Space") return "SPACE";
+  if (code === "ShiftLeft" || code === "ShiftRight") return "SHIFT";
+  if (code === "ControlLeft" || code === "ControlRight") return "CTRL";
+  if (code === "AltLeft" || code === "AltRight") return "ALT";
+  if (code.indexOf("Key") === 0) return code.slice(3);
+  if (code.indexOf("Digit") === 0) return code.slice(5);
+  if (code.indexOf("Arrow") === 0) return code.slice(5).toUpperCase();
+  return code.toUpperCase();
+}
 const heldCodes = new Set();
 const touchHeld = { left:false, right:false, up:false, down:false, jump:false, dash:false, slash:false, shot:false };
 function syncInput(){
@@ -1503,6 +1610,30 @@ function resetStage(full){
     aegisGuard = false; AEGIS_BEAT.active = false; AEGIS_BEAT.sw = null;
     pendingScene = null; DLG.active = false; beaconFlash = 0; bannerT = 0;
   }
+}
+/* ---------------- chapter progress save (every localStorage access wrapped) ----------------
+   Persists the last activated checkpoint, the full runState (shards/data/chips/heart/
+   maxHpBonus/capsuleUsed), and the best clear time, so reloading the page can offer
+   CONTINUE on the title screen. */
+const SAVE_KEY = "sf_save";
+function loadJSON(key){
+  try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; }
+  catch(e){ return null; }
+}
+function saveJSON(key, obj){
+  try { localStorage.setItem(key, JSON.stringify(obj)); } catch(e){}
+}
+let bestTime = null;
+(() => { const s = loadJSON(SAVE_KEY); if (s && typeof s.bestTime === "number") bestTime = s.bestTime; })();
+function activeCheckpointIndex(){
+  let idx = -1;
+  for (let i = 0; i < CHECKPOINTS.length; i++) if (CHECKPOINTS[i].active) idx = i;
+  return idx;
+}
+function saveProgress(){
+  /* saveJSON does the JSON.stringify (and its own try/catch) on the whole object,
+     runState included — no separate clone needed */
+  saveJSON(SAVE_KEY, { checkpoint:activeCheckpointIndex(), runState:runState, bestTime:bestTime });
 }
 function spawnEnemy(d){
   if (d.type === "walker") return { type:"walker", x:d.x, y:groundYAt(d.x) || 470, min:d.min, max:d.max, dir:-1, hp:3, maxHp:3, state:"patrol", t:Math.random(), fireT:1 + Math.random(), flashT:0, dead:false };
@@ -2052,6 +2183,7 @@ function updatePlayer(dt){
         spawnParticles(c.x, c.floorY - 52, 30, ["#7df3ff", "#ffffff", "#9a6bff"], 240, 0.8, -30);
         pendingScene = { lines:SCENE_BEACON, onDone:null }; pendingSceneT = 0.8;
       }
+      saveProgress();
     }
   }
   /* pickups — kind decides the prize */
@@ -2085,6 +2217,7 @@ function updatePlayer(dt){
         if (Math.random() < 0.5){ P.hp = Math.min(P.maxHp, P.hp + 4); toast("MYSTERY ORB — +4 HP", 1.2); spawnHealFx(pk.x, py); }
         else { runState.shards += 5; toast("MYSTERY ORB — SHARD BURST +5", 1.2); spawnParticles(pk.x, py, 14, ["#c9a7ff", "#9a6bff"], 130, 0.45, -40); }
       }
+      if (kind === "shard" || kind === "heart" || kind === "chip" || kind === "mystery") saveProgress();
     }
   }
   /* --- CHAPTER 1 story triggers --- */
@@ -3248,6 +3381,14 @@ function aegisBeatUpdate(dt){
    PERFORMANCE drops them (auto-selected once on slow machines); G toggles */
 let gfxHigh = true;
 try { if (localStorage.getItem("sf_gfx") === "0") gfxHigh = false; } catch(e){}
+/* screen shake toggle — when off, drawWorld() skips the shakeT trauma-shake and
+   camKick offsets entirely (the timers themselves still tick, just unused) */
+let screenShakeOn = true;
+try { if (localStorage.getItem("sf_shake") === "0") screenShakeOn = false; } catch(e){}
+function setScreenShake(on){
+  screenShakeOn = on;
+  try { localStorage.setItem("sf_shake", on ? "1" : "0"); } catch(e){}
+}
 const FILTER_OK = (() => {
   try { const c = document.createElement("canvas").getContext("2d"); if (!("filter" in c)) return false; c.filter = "blur(2px)"; return c.filter === "blur(2px)"; }
   catch(e){ return false; }
@@ -4016,14 +4157,15 @@ function drawWorld(){
   /* trauma shake: magnitude grows with the square of the remaining shake,
      and rolls on layered sines instead of jittering frame to frame */
   let shx = 0, shy = 0;
-  if (shakeT > 0){
+  if (screenShakeOn && shakeT > 0){
     const tr = Math.min(1, shakeT / 0.4), m = 13 * tr * tr, t = performance.now() / 1000;
     shx = m * (Math.sin(t * 47.3) * 0.6 + Math.sin(t * 89.1 + 1.7) * 0.4);
     shy = m * (Math.sin(t * 53.9 + 0.6) * 0.6 + Math.sin(t * 97.7 + 2.9) * 0.4);
     const roll = m * 0.0014 * Math.sin(t * 31.7);
     if (roll){ ctx.translate(VW / 2, VH / 2); ctx.rotate(roll); ctx.translate(-VW / 2, -VH / 2); }
   }
-  ctx.translate(-Math.round(camX + shx + camKickX), -Math.round(camY + shy + camKickY));
+  const kickX = screenShakeOn ? camKickX : 0, kickY = screenShakeOn ? camKickY : 0;
+  ctx.translate(-Math.round(camX + shx + kickX), -Math.round(camY + shy + kickY));
   for (const d of DECOR) if (d.back) drawDecor(d);
   for (const s of allSolids()){ if (s.crumble || s === SHUTTER_OBJ) continue; if (s.x + s.w > camX - 20 && s.x < camX + VW + 20) drawPlatform(s); }
   drawFloorDetails();
@@ -4537,12 +4679,55 @@ function startGame(){
   pendingScene = { lines:SCENE_OPEN, onDone:null }; pendingSceneT = 1.15;
   syncPlayingClass();
 }
+/* resume from the saved checkpoint + collectibles instead of a fresh run */
+function continueGame(){
+  if (!assetsReady) return;
+  audio();
+  document.getElementById("ovTitle").classList.add("hidden");
+  document.getElementById("ovClear").classList.add("hidden");
+  document.getElementById("ovPause").classList.add("hidden");
+  paused = false;
+  shotReleased = false; pressed.jump = false; pressed.dash = false; pressed.slash = false;
+  resetStage(true);   /* pristine baseline — same as a fresh start */
+  const save = loadJSON(SAVE_KEY);
+  let idx = -1;
+  if (save && save.runState){
+    Object.assign(runState, save.runState);
+    idx = typeof save.checkpoint === "number" ? save.checkpoint : -1;
+    for (let i = 0; i < CHECKPOINTS.length; i++) CHECKPOINTS[i].active = i <= idx;
+    if (idx >= 0){
+      const cp = CHECKPOINTS[idx];
+      respawnPoint = { x:cp.x, y:cp.floorY };
+      /* the checkpoint activation itself (and its one-time beacon cutscene) already
+         happened on the run that saved this — don't replay it, and pre-arm the early
+         x-gated comms lines that would otherwise all fire at once this deep in */
+      STORY.beacon = true;
+      if (respawnPoint.x > 690) STORY.dashLine = true;
+      if (STORY.dashLine && respawnPoint.x > 806) STORY.laserLine = true;
+      if (Math.abs(respawnPoint.x - CAPSULE.x) < 135) STORY.capsule = true;
+    }
+    if (typeof save.bestTime === "number") bestTime = save.bestTime;
+  }
+  resetStage(false);  /* rebuild pickups/enemies respecting the restored runState */
+  resetPlayer(respawnPoint.x, respawnPoint.y);
+  camSnap();
+  lights = []; deathOrbs = []; bossBarFill = 0; bossGhost = 40; hurtFlashT = 0;
+  SFX.start();
+  mode = "playing";
+  introCardT = 0;
+  pendingScene = null; pendingSceneT = 0;   /* skip the opening cutscene when resuming mid-stage */
+  syncPlayingClass();
+  toast(idx >= 0 ? "CONTINUING — CHECKPOINT " + (idx + 1) : "CONTINUING", 1.6);
+}
 function showClear(){
   mode = "clear";
   syncPlayingClass();
   document.getElementById("clearTime").textContent = fmtTime(stageTime);
   document.getElementById("clearShards").textContent = "◆ " + runState.shards;
   document.getElementById("clearData").textContent = runState.data + "/3";
+  if (bestTime == null || stageTime < bestTime) bestTime = stageTime;
+  document.getElementById("clearBest").textContent = fmtTime(bestTime);
+  saveProgress();
   const vc = document.getElementById("victoryCanvas");
   if (vc && IMG.sable){
     const vctx = vc.getContext("2d");
@@ -4561,7 +4746,67 @@ function togglePause(){
   if (paused) chargeLoopStop();
   syncPlayingClass();
 }
+
+/* ---------------- settings panel ----------------
+   Reachable from the title screen and the pause menu; remembers which one it was
+   opened from so BACK returns there without touching mode/paused. */
+const REBIND_ACTIONS = ["jump", "dash", "slash", "shot"];
+let settingsFrom = "title", rebindListening = null;
+function openSettings(from){
+  settingsFrom = from;
+  document.getElementById(from === "pause" ? "ovPause" : "ovTitle").classList.add("hidden");
+  document.getElementById("ovSettings").classList.remove("hidden");
+  refreshSettingsUI();
+}
+function closeSettings(){
+  rebindListening = null;
+  document.getElementById("ovSettings").classList.add("hidden");
+  document.getElementById(settingsFrom === "pause" ? "ovPause" : "ovTitle").classList.remove("hidden");
+}
+function refreshSettingsUI(){
+  const mv = document.getElementById("setMusicVol"); if (mv) mv.value = Math.round(musicVol * 100);
+  const sv = document.getElementById("setSfxVol"); if (sv) sv.value = Math.round(sfxVol * 100);
+  const shakeBtn = document.getElementById("setShakeBtn"); if (shakeBtn) shakeBtn.textContent = screenShakeOn ? "ON" : "OFF";
+  const gfxBtn = document.getElementById("setGfxBtn"); if (gfxBtn) gfxBtn.textContent = gfxHigh ? "FULL" : "PERFORMANCE";
+  for (const action of REBIND_ACTIONS){
+    const btn = document.getElementById("rebind_" + action);
+    if (!btn) continue;
+    btn.textContent = rebindListening === action ? "PRESS A KEY…" : keyLabel(REBINDS[action]);
+    btn.classList.toggle("listening", rebindListening === action);
+  }
+}
+/* codes the rebind UI refuses, so a custom bind can never steal movement or the
+   pause/mute/graphics hotkeys out from under the player */
+function reservedBindCodes(){
+  const reserved = new Set(["Escape", "KeyP", "KeyM", "KeyG"]);
+  for (const code in KEYMAP){
+    const act = KEYMAP[code];
+    if (act === "left" || act === "right" || act === "up" || act === "down") reserved.add(code);
+  }
+  return reserved;
+}
+function startRebind(action){
+  if (rebindListening || REBIND_ACTIONS.indexOf(action) < 0) return;
+  rebindListening = action;
+  refreshSettingsUI();
+  const capture = (e) => {
+    e.preventDefault(); e.stopImmediatePropagation();
+    document.removeEventListener("keydown", capture, true);
+    rebindListening = null;
+    if (e.code === "Escape"){ refreshSettingsUI(); return; }   /* cancel, keep the old bind */
+    if (reservedBindCodes().has(e.code)){
+      toast("KEY RESERVED — TRY ANOTHER", 1.4);
+      refreshSettingsUI();
+      return;
+    }
+    rebindAction(action, e.code);
+    toast(action.toUpperCase() + " BOUND TO " + keyLabel(e.code), 1.4);
+    refreshSettingsUI();
+  };
+  document.addEventListener("keydown", capture, true);
+}
 document.getElementById("btnStart").addEventListener("click", () => { if (assetsReady) startGame(); });
+document.getElementById("btnContinue").addEventListener("click", () => { if (assetsReady) continueGame(); });
 document.getElementById("btnAgain").addEventListener("click", startGame);
 document.getElementById("btnResume").addEventListener("click", togglePause);
 document.getElementById("btnRestart").addEventListener("click", () => { startGame(); });
@@ -4571,6 +4816,16 @@ document.getElementById("btnSound").addEventListener("click", () => {
   document.getElementById("icoSndOn").classList.toggle("hidden", muted);
   document.getElementById("icoSndOff").classList.toggle("hidden", !muted);
 });
+document.getElementById("btnSettingsTitle").addEventListener("click", () => openSettings("title"));
+document.getElementById("btnSettingsPause").addEventListener("click", () => openSettings("pause"));
+document.getElementById("btnSettingsClose").addEventListener("click", closeSettings);
+document.getElementById("setMusicVol").addEventListener("input", (e) => { audio(); setMusicVol(e.target.value / 100); });
+document.getElementById("setSfxVol").addEventListener("input", (e) => { audio(); setSfxVol(e.target.value / 100); });
+document.getElementById("setShakeBtn").addEventListener("click", () => { setScreenShake(!screenShakeOn); refreshSettingsUI(); });
+document.getElementById("setGfxBtn").addEventListener("click", () => { toggleGfx(); refreshSettingsUI(); });
+for (const action of REBIND_ACTIONS){
+  document.getElementById("rebind_" + action).addEventListener("click", () => startRebind(action));
+}
 cv.addEventListener("contextmenu", (e) => e.preventDefault());
 /* tap advances dialogue (touch players get no keyboard) */
 cv.addEventListener("pointerdown", () => { if (DLG.active && mode === "playing") advanceDlg(); });
@@ -4579,6 +4834,12 @@ cv.addEventListener("pointerdown", () => { if (DLG.active && mode === "playing")
 resetStage(true);
 resetPlayer(90, 470);
 camSnap();
+(() => {
+  const s = loadJSON(SAVE_KEY);
+  if (s && typeof s.checkpoint === "number" && s.checkpoint >= 0 && s.runState){
+    document.getElementById("btnContinue").classList.remove("hidden");
+  }
+})();
 loadAssets();
 let lastT = performance.now();
 /* presentation state that ticks every frame, even through hitstop */
